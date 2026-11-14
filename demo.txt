@@ -1,0 +1,231 @@
+HOW TO RUN THE LECTURE 3 DEMO
+=============================
+
+How to use this file
+  - Open one terminal per numbered section (the + button in the terminal panel).
+  - Copy a whole block and paste it. Every block starts with its own "cd", so it does
+    not matter which folder the terminal was in.
+  - Lines starting with # are comments. They are safe to paste.
+  - The terminals are PowerShell. There is no activate step: every command runs the
+    environment's own python.exe, so the prompt will not show (.venv).
+
+The folder
+  C:\Users\Admin\Desktop\darmod-deployment-lecture-3
+
+The links you will use (all already live)
+  Maple (everyone's phone):  https://maple-108279147534.northamerica-northeast2.run.app
+  champion (the good one):   https://champion---maple-xniespgdxa-pd.a.run.app
+  challenger (v2.4, bad):    https://challenger---maple-xniespgdxa-pd.a.run.app
+  Cloud Monitoring:          https://console.cloud.google.com/monitoring/dashboards?project=devfest-demos-472013
+  Logs Explorer:             https://console.cloud.google.com/logs/query?project=devfest-demos-472013
+  BigQuery:                  https://console.cloud.google.com/bigquery?project=devfest-demos-472013
+
+The story in one line
+  Maple v2.3 searches before it answers. v2.4 is "faster and cheaper": it skips the search.
+  Every chart you already had says v2.4 is better. Only the ML-layer chart says it is not.
+
+
+======================================================================
+1. GET READY, 30 MINUTES BEFORE   (Terminal 1)
+======================================================================
+# WHAT IT DOES: checks every piece of the demo and prints PASS or FAIL for each one.
+# GOOD RESULT: every line says PASS. If one says FAIL, fix that before anyone arrives.
+# IT ALSO ASKS MAPLE ONE REAL QUESTION, so the first real one is not a cold start.
+
+cd C:\Users\Admin\Desktop\darmod-deployment-lecture-3
+.\.venv\Scripts\python.exe ops\preflight.py
+
+# Then put these on screen, in this order, before the room fills:
+#   1. the slide with the QR code
+#   2. Cloud Monitoring dashboard "Maple: three layers"
+#   3. Logs Explorer, with the query from section 3
+#   4. Looker Studio report (set up once, see section 8)
+#   5. a terminal, for the commands below
+
+
+======================================================================
+2. DEMO 1: WATCH THE REAL THING   (the room, then Logs Explorer)
+======================================================================
+# Everyone scans the QR code and asks Maple something. Each person gets 25 questions.
+# Maple prints one JSON line per answer. Show them arriving:
+
+cd C:\Users\Admin\Desktop\darmod-deployment-lecture-3
+gcloud logging read 'resource.type="cloud_run_revision" AND jsonPayload.event="maple.turn"' --project devfest-demos-472013 --freshness=10m --limit 5 --format="table(timestamp,jsonPayload.prompt_version,jsonPayload.revision,jsonPayload.grounded,jsonPayload.latency_ms,jsonPayload.output_tokens)"
+
+# In Logs Explorer paste this query instead, and open one line to show every field:
+#   resource.type="cloud_run_revision"
+#   jsonPayload.event="maple.turn"
+# Then open the dashboard: the same traffic as copies, requests, p99, answers per minute.
+
+
+======================================================================
+3. DEMO 2: SHIP A BAD RELEASE   (this is the moment)
+======================================================================
+# v2.4 is already built and waiting as the "challenger" revision. Building takes minutes,
+# so we pre-built it. This one command is the release: all traffic goes to it.
+
+cd C:\Users\Admin\Desktop\darmod-deployment-lecture-3
+gcloud run services update-traffic maple --to-tags challenger=100 --project devfest-demos-472013 --region northamerica-northeast2
+
+# Tell everyone to ask Maple a factual question again. Then watch, in this order:
+#   - the answers come back much faster, and shorter
+#   - dashboard: copies, requests, p99 latency all look fine or better
+#   - dashboard ML row: "searched first" stops, "did not search" takes over
+#   - an alert email arrives (about a minute or two after the room starts asking)
+# A version tag on every answer shows who answered: v2.4.
+
+
+======================================================================
+4. DEMO 3: IT FIXES ITSELF   (nobody types anything)
+======================================================================
+# The alert goes to Pub/Sub. maple-guard reads it and moves traffic back to champion.
+# Show what it did:
+
+cd C:\Users\Admin\Desktop\darmod-deployment-lecture-3
+gcloud logging read 'resource.type="cloud_run_revision" AND resource.labels.service_name="maple-guard" AND jsonPayload.event="guard.rollback"' --project devfest-demos-472013 --freshness=30m --limit 3 --format="value(timestamp,jsonPayload.was,jsonPayload.now)"
+
+# See where the traffic is now:
+gcloud run services describe maple --project devfest-demos-472013 --region northamerica-northeast2 --format="yaml(status.traffic)"
+
+# If the alert is slow and the room is waiting, ONLY THEN do what the guard would do by hand:
+#   gcloud run services update-traffic maple --to-tags champion=100 --project devfest-demos-472013 --region northamerica-northeast2
+
+
+======================================================================
+5. DEMO 4: WHICH VERSION ANSWERED ME?   (tags, a split, lineage)
+======================================================================
+cd C:\Users\Admin\Desktop\darmod-deployment-lecture-3
+
+# The two names and what they point at:
+gcloud run services describe maple --project devfest-demos-472013 --region northamerica-northeast2 --format="yaml(status.traffic)"
+
+# A canary: 10% of people get the challenger. Ask Maple a few times and read the version tag.
+gcloud run services update-traffic maple --to-tags champion=90,challenger=10 --project devfest-demos-472013 --region northamerica-northeast2
+
+# Put it back (always finish a demo with this):
+gcloud run services update-traffic maple --to-tags champion=100 --project devfest-demos-472013 --region northamerica-northeast2
+
+# Lineage: trace answers to the prompt, revision and commit. The BigQuery table fills a few
+# minutes after the answers happen, so use answers from before the lecture if it is still empty.
+(Get-Content ops\lineage.sql) -replace 'PROJECT_ID','devfest-demos-472013' | bq query --use_legacy_sql=false --project_id=devfest-demos-472013
+
+
+======================================================================
+6. DEMO 5: THE PAPERWORK
+======================================================================
+cd C:\Users\Admin\Desktop\darmod-deployment-lecture-3
+
+# A blameless postmortem, written from the real incident in the logs. Numbers and timeline are
+# computed from the logs; a model writes only the prose around them. Open the file afterwards.
+.\.venv\Scripts\python.exe ops\postmortem.py --project devfest-demos-472013 --freshness 3h
+
+# The model card and system card. The numbers come from a small check of the running service
+# (6 questions, takes about a minute each), the judgment sections from ops\card_human.json.
+.\.venv\Scripts\python.exe ops\eval_maple.py --url https://champion---maple-xniespgdxa-pd.a.run.app --out ops\eval_champion.json
+.\.venv\Scripts\python.exe ops\eval_maple.py --url https://challenger---maple-xniespgdxa-pd.a.run.app --out ops\eval_challenger.json
+.\.venv\Scripts\python.exe ops\make_cards.py --champion ops\eval_champion.json --challenger ops\eval_challenger.json
+
+# Open docs\MODEL_CARD.md and docs\SYSTEM_CARD.md. Ask the room: what would an auditor still need?
+
+
+======================================================================
+7. AFTER THE LECTURE: LEAVE IT TIDY
+======================================================================
+# Traffic back on champion, in case a demo left it somewhere else.
+gcloud run services update-traffic maple --to-tags champion=100 --project devfest-demos-472013 --region northamerica-northeast2
+
+# Maple keeps one warm copy running, which costs a little every day. The commands to stop
+# that, and to delete everything this lecture created, are in shutdown.txt, kept apart on
+# purpose so pasting this file can never delete anything.
+
+
+======================================================================
+8. SET UP ONCE   (already done on 14 Nov 2026; only run these on an empty project)
+======================================================================
+
+# ---- 8.1  Turn on what is needed
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com aiplatform.googleapis.com logging.googleapis.com monitoring.googleapis.com pubsub.googleapis.com bigquery.googleapis.com --project devfest-demos-472013
+
+# ---- 8.2  Deploy Maple twice: the champion, then the challenger from the same container
+# The build takes about 5 minutes. The challenger is the same container with one setting changed.
+cd C:\Users\Admin\Desktop\darmod-deployment-lecture-3
+$sha = (git rev-parse --short HEAD)
+gcloud run deploy maple --source . --project devfest-demos-472013 --region northamerica-northeast2 --allow-unauthenticated --memory 1Gi --cpu 1 --concurrency 8 --min-instances 1 --max-instances 3 --timeout 300 --session-affinity --tag champion --set-env-vars "ENVIRONMENT=prod,LOG_LEVEL=INFO,DEPLOYMENT_REGION=northamerica-northeast2,REQUIRE_API_KEY=FALSE,GOOGLE_GENAI_USE_VERTEXAI=TRUE,GOOGLE_CLOUD_PROJECT=devfest-demos-472013,GOOGLE_CLOUD_LOCATION=global,PROMPT_VERSION=v2.3,GIT_COMMIT=$sha"
+gcloud run services update-traffic maple --to-tags champion=100 --project devfest-demos-472013 --region northamerica-northeast2
+gcloud run services update maple --project devfest-demos-472013 --region northamerica-northeast2 --no-traffic --tag challenger --min-instances 0 --update-env-vars PROMPT_VERSION=v2.4
+
+# ---- 8.3  The logs become numbers: four log-based metrics and the dashboard
+cd C:\Users\Admin\Desktop\darmod-deployment-lecture-3
+gcloud logging metrics create maple_turns --config-from-file=ops\metrics\maple_turns.yaml --project devfest-demos-472013
+gcloud logging metrics create maple_searched --config-from-file=ops\metrics\maple_searched.yaml --project devfest-demos-472013
+gcloud logging metrics create maple_not_searched --config-from-file=ops\metrics\maple_not_searched.yaml --project devfest-demos-472013
+gcloud logging metrics create maple_output_tokens --config-from-file=ops\metrics\maple_output_tokens.yaml --project devfest-demos-472013
+gcloud monitoring dashboards create --config-from-file=ops\dashboard.json --project devfest-demos-472013
+
+# ---- 8.4  maple-guard: the small service that rolls Maple back
+cd C:\Users\Admin\Desktop\darmod-deployment-lecture-3
+gcloud pubsub topics create maple-alerts --project devfest-demos-472013
+gcloud iam service-accounts create maple-guard --display-name "maple-guard" --project devfest-demos-472013
+gcloud run services add-iam-policy-binding maple --member=serviceAccount:maple-guard@devfest-demos-472013.iam.gserviceaccount.com --role=roles/run.admin --region northamerica-northeast2 --project devfest-demos-472013
+gcloud iam service-accounts add-iam-policy-binding 108279147534-compute@developer.gserviceaccount.com --member=serviceAccount:maple-guard@devfest-demos-472013.iam.gserviceaccount.com --role=roles/iam.serviceAccountUser --project devfest-demos-472013
+gcloud run deploy maple-guard --source guard --project devfest-demos-472013 --region northamerica-northeast2 --no-allow-unauthenticated --service-account maple-guard@devfest-demos-472013.iam.gserviceaccount.com --min-instances 0 --max-instances 1 --memory 512Mi --set-env-vars "PROJECT_ID=devfest-demos-472013,REGION=northamerica-northeast2,TARGET_SERVICE=maple"
+gcloud run services add-iam-policy-binding maple-guard --member=serviceAccount:maple-guard@devfest-demos-472013.iam.gserviceaccount.com --role=roles/run.invoker --region northamerica-northeast2 --project devfest-demos-472013
+gcloud projects add-iam-policy-binding devfest-demos-472013 --member=serviceAccount:service-108279147534@gcp-sa-pubsub.iam.gserviceaccount.com --role=roles/iam.serviceAccountTokenCreator --condition=None
+# The Pub/Sub notification channel has to exist before Monitoring's own service account does:
+gcloud beta monitoring channels create --display-name="maple-guard (Pub/Sub)" --type=pubsub --channel-labels=topic=projects/devfest-demos-472013/topics/maple-alerts --project devfest-demos-472013
+gcloud pubsub topics add-iam-policy-binding maple-alerts --member=serviceAccount:service-108279147534@gcp-sa-monitoring-notification.iam.gserviceaccount.com --role=roles/pubsub.publisher --project devfest-demos-472013
+$guard = gcloud run services describe maple-guard --region northamerica-northeast2 --project devfest-demos-472013 --format="value(status.url)"
+gcloud pubsub subscriptions create maple-guard-push --topic maple-alerts --push-endpoint="$guard/alert" --push-auth-service-account=maple-guard@devfest-demos-472013.iam.gserviceaccount.com --push-auth-token-audience=$guard --ack-deadline=60 --project devfest-demos-472013
+
+# ---- 8.5  The alerts, the uptime check, the SLO
+# The alert goes to Pub/Sub (so maple-guard acts). Use the channel id printed in 8.4:
+$pubsub = gcloud beta monitoring channels list --filter="displayName='maple-guard (Pub/Sub)'" --format="value(name)" --project devfest-demos-472013
+gcloud alpha monitoring policies create --policy-from-file=ops\alert-policy.json --notification-channels=$pubsub --project devfest-demos-472013
+gcloud monitoring uptime create "Maple answers /version" --resource-type=uptime-url --resource-labels=host=maple-108279147534.northamerica-northeast2.run.app,project_id=devfest-demos-472013 --path=/version --protocol=https --period=5 --project devfest-demos-472013
+# The SLO and its burn-rate alert (this is the slide about threshold alerts versus SLO alerts):
+$token = gcloud auth print-access-token
+Invoke-RestMethod -Method Post -Uri "https://monitoring.googleapis.com/v3/projects/devfest-demos-472013/services?serviceId=maple" -Headers @{Authorization="Bearer $token"} -ContentType "application/json" -Body '{"displayName":"Maple","custom":{}}'
+Invoke-RestMethod -Method Post -Uri "https://monitoring.googleapis.com/v3/projects/devfest-demos-472013/services/maple/serviceLevelObjectives?serviceLevelObjectiveId=maple-availability" -Headers @{Authorization="Bearer $token"} -ContentType "application/json" -InFile ops\slo.json
+(Get-Content ops\alert-slo-burn.json) -replace 'PROJECT_NUMBER','108279147534' | Set-Content $env:TEMP\burn.json
+gcloud alpha monitoring policies create --policy-from-file=$env:TEMP\burn.json --project devfest-demos-472013
+
+# ---- 8.6  YOUR EMAIL: the alert that reaches your phone  (type your address in place of YOU@example.com)
+gcloud beta monitoring channels create --display-name="Maple alerts (email)" --type=email --channel-labels=email_address=YOU@example.com --project devfest-demos-472013
+$email = gcloud beta monitoring channels list --filter="displayName='Maple alerts (email)'" --format="value(name)" --project devfest-demos-472013
+$policy = gcloud alpha monitoring policies list --filter="displayName='Maple stopped searching before answering'" --format="value(name)" --project devfest-demos-472013
+gcloud alpha monitoring policies update $policy --add-notification-channels=$email --project devfest-demos-472013
+
+# ---- 8.7  BigQuery: the logs as a table, for Looker Studio and the lineage query
+cd C:\Users\Admin\Desktop\darmod-deployment-lecture-3
+bq --location=northamerica-northeast2 mk --dataset --description "Maple turn logs" devfest-demos-472013:maple_ops
+gcloud logging sinks create maple-turns-bq bigquery.googleapis.com/projects/devfest-demos-472013/datasets/maple_ops --log-filter='resource.type="cloud_run_revision" AND jsonPayload.event="maple.turn"' --use-partitioned-tables --project devfest-demos-472013
+# Give the sink permission to write (the message above names the service account to use):
+#   BigQuery console -> dataset maple_ops -> Sharing -> Permissions -> add
+#   service-108279147534@gcp-sa-logging.iam.gserviceaccount.com as "BigQuery Data Editor"
+# Ask Maple a few questions, wait a few minutes for the table to appear, then make the view:
+(Get-Content ops\turns_view.sql) -replace 'PROJECT_ID','devfest-demos-472013' | bq query --use_legacy_sql=false --project_id=devfest-demos-472013
+
+# ---- 8.8  Looker Studio (by hand, about 5 minutes, free)
+#   1. Go to lookerstudio.google.com, Create, Report.
+#   2. Add data: BigQuery, project devfest-demos-472013, dataset maple_ops, table "turns" (the view).
+#   3. Add three charts: a time series of answers by prompt_version, a time series of the average
+#      of latency_ms by prompt_version, and a scorecard of the share where grounded is true.
+#   4. Save it. Open it in a tab before the lecture.
+
+
+======================================================================
+IF SOMETHING GOES WRONG
+======================================================================
+# The alert did not fire yet: the room has to be asking. Metrics are counted per minute, and the
+#   alert needs most answers in a minute to skip the search. Ask a few factual questions yourself
+#   on the challenger link, or just say what the alert will do and use the by-hand command in section 4.
+
+# Maple says "busy right now": the model's shared quota is full. Wait a few seconds and ask again.
+
+# Check what is serving, any time:
+gcloud run services describe maple --project devfest-demos-472013 --region northamerica-northeast2 --format="yaml(status.traffic)"
+
+# Gemini login errors when running Maple on your laptop: log in again.
+gcloud auth application-default login
+
+# "Activate.ps1 is not recognized": there is no activate script. Use .\.venv\Scripts\python.exe.

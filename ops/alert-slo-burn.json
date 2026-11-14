@@ -1,0 +1,21 @@
+{
+  "displayName": "Maple is burning its error budget",
+  "documentation": {
+    "mimeType": "text/markdown",
+    "content": "Maple's 5xx errors are using up the 30-day budget about ten times faster than planned. A one-minute deploy blip does not trigger this; a real outage does. Start with the runbook: confirm on the dashboard, check which revision has traffic, send it back to champion."
+  },
+  "combiner": "OR",
+  "conditions": [
+    {
+      "displayName": "Burn rate above 10 over the last hour",
+      "conditionThreshold": {
+        "filter": "select_slo_burn_rate(\"projects/PROJECT_NUMBER/services/maple/serviceLevelObjectives/maple-availability\", \"3600s\")",
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 10,
+        "duration": "0s",
+        "trigger": {"count": 1}
+      }
+    }
+  ],
+  "alertStrategy": {"autoClose": "1800s"}
+}

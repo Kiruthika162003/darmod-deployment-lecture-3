@@ -1,0 +1,63 @@
+SHUTDOWN: STOP THE COSTS AFTER LECTURE 3
+=========================================
+
+Read this first
+  These commands stop things or delete them. They are in their own file on purpose, so that
+  pasting demo.txt can never delete anything. Run them only when the lecture is over, and
+  only the block you mean to.
+
+  Project: devfest-demos-472013     Region: northamerica-northeast2
+
+
+======================================================================
+A. THE CHEAP FIX: STOP PAYING FOR THE WARM COPY   (keeps everything, can be undone)
+======================================================================
+# Maple keeps one copy warm all the time. This lets it go to zero when nobody is using it.
+# The first question after that waits a few seconds (a cold start). Nothing is deleted.
+gcloud run services update maple --min-instances 0 --project devfest-demos-472013 --region northamerica-northeast2
+
+# To bring the warm copy back before the next lecture:
+#   gcloud run services update maple --min-instances 1 --project devfest-demos-472013 --region northamerica-northeast2
+
+
+======================================================================
+B. PAUSE THE ALERTS   (keeps everything, can be undone)
+======================================================================
+# Stops the checks and the emails. Use this if you do not want alerts between lectures.
+# Only Maple's two policies, found by name. Nothing else in the project is touched.
+$ids = gcloud alpha monitoring policies list --filter="displayName='Maple stopped searching before answering' OR displayName='Maple is burning its error budget'" --format="value(name)" --project devfest-demos-472013
+foreach ($id in $ids) { gcloud alpha monitoring policies update $id --no-enabled --project devfest-demos-472013 }
+
+
+======================================================================
+C. DELETE EVERYTHING LECTURE 3 CREATED   (cannot be undone)
+======================================================================
+# Maple itself, maple-guard, the alerts, the dashboard, the metrics, the SLO, the logs table.
+# Your lecture 2 and lecture 1 revisions go with the Maple service. If you want to keep them,
+# stop after section A.
+
+gcloud run services delete maple-guard --project devfest-demos-472013 --region northamerica-northeast2 --quiet
+gcloud pubsub subscriptions delete maple-guard-push --project devfest-demos-472013 --quiet
+gcloud pubsub topics delete maple-alerts --project devfest-demos-472013 --quiet
+gcloud iam service-accounts delete maple-guard@devfest-demos-472013.iam.gserviceaccount.com --project devfest-demos-472013 --quiet
+
+# Each of these finds Maple's items by name, so other alerts, channels and dashboards in the
+# project are left alone. Look at what each one lists before you let it delete.
+$ids = gcloud alpha monitoring policies list --filter="displayName='Maple stopped searching before answering' OR displayName='Maple is burning its error budget'" --format="value(name)" --project devfest-demos-472013
+foreach ($id in $ids) { gcloud alpha monitoring policies delete $id --project devfest-demos-472013 --quiet }
+$ids = gcloud beta monitoring channels list --filter="displayName='maple-guard (Pub/Sub)' OR displayName='Maple alerts (email)'" --format="value(name)" --project devfest-demos-472013
+foreach ($id in $ids) { gcloud beta monitoring channels delete $id --project devfest-demos-472013 --quiet }
+$ids = gcloud monitoring dashboards list --filter="displayName='Maple: three layers'" --format="value(name)" --project devfest-demos-472013
+foreach ($id in $ids) { gcloud monitoring dashboards delete $id --project devfest-demos-472013 --quiet }
+$ids = gcloud monitoring uptime list-configs --filter="displayName='Maple answers /version'" --format="value(name)" --project devfest-demos-472013
+foreach ($id in $ids) { gcloud monitoring uptime delete $id --project devfest-demos-472013 --quiet }
+
+foreach ($m in "maple_turns","maple_searched","maple_not_searched","maple_output_tokens") { gcloud logging metrics delete $m --project devfest-demos-472013 --quiet }
+gcloud logging sinks delete maple-turns-bq --project devfest-demos-472013 --quiet
+bq rm -r -f -d devfest-demos-472013:maple_ops
+
+$token = gcloud auth print-access-token
+Invoke-RestMethod -Method Delete -Uri "https://monitoring.googleapis.com/v3/projects/devfest-demos-472013/services/maple" -Headers @{Authorization="Bearer $token"}
+
+# The Maple service last, once you are sure:
+gcloud run services delete maple --project devfest-demos-472013 --region northamerica-northeast2 --quiet
