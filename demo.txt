@@ -178,7 +178,9 @@ gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregi
 # The build takes about 5 minutes. The challenger is the same container with one setting changed.
 cd C:\Users\Admin\Desktop\darmod-deployment-lecture-3
 $sha = (git rev-parse --short HEAD)
-gcloud run deploy maple --source . --project devfest-demos-472013 --region northamerica-northeast2 --allow-unauthenticated --memory 1Gi --cpu 1 --concurrency 8 --min-instances 1 --max-instances 3 --timeout 300 --session-affinity --tag champion --set-env-vars "ENVIRONMENT=prod,LOG_LEVEL=INFO,DEPLOYMENT_REGION=northamerica-northeast2,REQUIRE_API_KEY=FALSE,GOOGLE_GENAI_USE_VERTEXAI=TRUE,GOOGLE_CLOUD_PROJECT=devfest-demos-472013,GOOGLE_CLOUD_LOCATION=global,PROMPT_VERSION=v2.3,GIT_COMMIT=$sha"
+# A fresh random value that signs the browser cookies. It lives only in Cloud Run, never in the repo.
+$secret = [guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N")
+gcloud run deploy maple --source . --project devfest-demos-472013 --region northamerica-northeast2 --allow-unauthenticated --memory 1Gi --cpu 1 --concurrency 8 --min-instances 1 --max-instances 3 --timeout 300 --session-affinity --tag champion --set-env-vars "ENVIRONMENT=prod,LOG_LEVEL=INFO,DEPLOYMENT_REGION=northamerica-northeast2,REQUIRE_API_KEY=FALSE,GOOGLE_GENAI_USE_VERTEXAI=TRUE,GOOGLE_CLOUD_PROJECT=devfest-demos-472013,GOOGLE_CLOUD_LOCATION=global,PROMPT_VERSION=v2.3,GIT_COMMIT=$sha,SESSION_SECRET=$secret"
 gcloud run services update-traffic maple --to-tags champion=100 --project devfest-demos-472013 --region northamerica-northeast2
 gcloud run services update maple --project devfest-demos-472013 --region northamerica-northeast2 --no-traffic --tag challenger --min-instances 0 --update-env-vars PROMPT_VERSION=v2.4
 
@@ -217,7 +219,7 @@ Invoke-RestMethod -Method Post -Uri "https://monitoring.googleapis.com/v3/projec
 (Get-Content ops\alert-slo-burn.json) -replace 'PROJECT_NUMBER','108279147534' | Set-Content $env:TEMP\burn.json
 gcloud alpha monitoring policies create --policy-from-file=$env:TEMP\burn.json --project devfest-demos-472013
 
-# ---- 8.6  YOUR EMAIL: the alert that reaches your phone  (already added for YOUR_EMAIL@example.com)
+# ---- 8.6  YOUR EMAIL: the alert that reaches your phone  (type your own address in place of YOUR_EMAIL@example.com)
 gcloud beta monitoring channels create --display-name="Maple alerts (email)" --type=email --channel-labels=email_address=YOUR_EMAIL@example.com --project devfest-demos-472013
 $email = (gcloud beta monitoring channels list --format="csv[no-heading](name,displayName)" --project devfest-demos-472013 | Where-Object { $_ -match 'Maple alerts' }).Split(',')[0]
 $policy = gcloud alpha monitoring policies list --filter="displayName='Maple stopped searching before answering'" --format="value(name)" --project devfest-demos-472013
