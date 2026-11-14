@@ -30,7 +30,18 @@ foreach ($id in $ids) { gcloud alpha monitoring policies update $id --no-enabled
 
 
 ======================================================================
-C. DELETE EVERYTHING LECTURE 3 CREATED   (cannot be undone)
+C. EMPTY WHAT THE ROOM LOGGED   (cannot be undone)
+======================================================================
+# Deletes the logged answers in BigQuery that are more than an hour old, so the next lecture
+# starts with a clean table. Rows from the last hour cannot be deleted yet (BigQuery holds
+# streamed rows for a while), so run it again later if you need those gone too.
+# The same lines in Cloud Logging are not deleted here: they expire by themselves after 30 days,
+# and deleting them would also remove the logs of every other Cloud Run service in the project.
+bq query --use_legacy_sql=false --project_id=devfest-demos-472013 "DELETE FROM ``devfest-demos-472013.maple_ops.run_googleapis_com_stdout`` WHERE timestamp < TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 HOUR)"
+
+
+======================================================================
+D. DELETE EVERYTHING LECTURE 3 CREATED   (cannot be undone)
 ======================================================================
 # Maple itself, maple-guard, the alerts, the dashboard, the metrics, the SLO, the logs table.
 # Your lecture 2 and lecture 1 revisions go with the Maple service. If you want to keep them,

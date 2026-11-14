@@ -129,14 +129,42 @@ cd C:\Users\Admin\Desktop\darmod-deployment-lecture-3
 
 
 ======================================================================
-7. AFTER THE LECTURE: LEAVE IT TIDY
+7. CLEAN UP   (during the lecture if the room floods Maple, and after it)
 ======================================================================
-# Traffic back on champion, in case a demo left it somewhere else.
-gcloud run services update-traffic maple --to-tags champion=100 --project devfest-demos-472013 --region northamerica-northeast2
+# How far a flood can go: each browser gets 25 questions, Maple runs at most 3 copies, and
+# each copy works on 4 questions at a time and queues the rest. So the cost has a ceiling,
+# but if you want to stop it right now, use 7.1.
 
-# Maple keeps one warm copy running, which costs a little every day. The commands to stop
-# that, and to delete everything this lecture created, are in shutdown.txt, kept apart on
-# purpose so pasting this file can never delete anything.
+# ---- 7.1  The room is flooding Maple: close the door, then reopen it
+# Closes Maple to the public (visitors get "403 Forbidden"). Nothing is deleted.
+gcloud run services remove-iam-policy-binding maple --member=allUsers --role=roles/run.invoker --project devfest-demos-472013 --region northamerica-northeast2
+# Reopen it:
+#   gcloud run services add-iam-policy-binding maple --member=allUsers --role=roles/run.invoker --project devfest-demos-472013 --region northamerica-northeast2
+
+# ---- 7.2  Slow it down without closing it: one copy only (undo with --max-instances 3)
+gcloud run services update maple --max-instances 1 --project devfest-demos-472013 --region northamerica-northeast2
+#   gcloud run services update maple --max-instances 3 --project devfest-demos-472013 --region northamerica-northeast2
+
+# ---- 7.3  Put everything back the way it was before the lecture
+# Traffic on champion, at most 3 copies.
+gcloud run services update-traffic maple --to-tags champion=100 --project devfest-demos-472013 --region northamerica-northeast2
+gcloud run services update maple --max-instances 3 --project devfest-demos-472013 --region northamerica-northeast2
+
+# ---- 7.4  Stop the emails, and let the copies go
+# Pauses Maple's two alerts (found by name; nothing else in the project is touched).
+$ids = gcloud alpha monitoring policies list --filter="displayName='Maple stopped searching before answering' OR displayName='Maple is burning its error budget'" --format="value(name)" --project devfest-demos-472013
+foreach ($id in $ids) { gcloud alpha monitoring policies update $id --no-enabled --project devfest-demos-472013 }
+# Turn them back on before the next lecture:
+#   foreach ($id in $ids) { gcloud alpha monitoring policies update $id --enabled --project devfest-demos-472013 }
+# Let Maple scale to zero when nobody is using it. This also clears every session's question
+# count, which lives in each copy's memory. The first question afterwards waits a few seconds.
+gcloud run services update maple --min-instances 0 --project devfest-demos-472013 --region northamerica-northeast2
+
+# ---- 7.5  What the room left behind
+# The answers they logged stay in Cloud Logging (30 days by default) and in the BigQuery table.
+# To empty the BigQuery table of everything older than an hour, see shutdown.txt, section C.
+# The commands that delete the whole lecture are also in shutdown.txt, kept apart on purpose,
+# so pasting this file can never delete anything.
 
 
 ======================================================================
