@@ -15,7 +15,7 @@ import json
 import statistics
 import subprocess
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 LOG_FILTER = (
@@ -37,15 +37,28 @@ def when(entry: dict) -> datetime:
     return datetime.fromisoformat(entry["timestamp"].replace("Z", "+00:00"))
 
 
-def facts_from(entries: list[dict]) -> dict:
-    turns = [e for e in entries if e["jsonPayload"]["event"] == "maple.turn" and e["jsonPayload"].get("search_allowed")]
+def facts_from(entries: list[dict], window_min: int = 30) -> dict:
+    """Facts about the latest incident: the last rollback, and the turns just before it.
+
+    Turns after the rollback are not user impact (someone asking the challenger's own
+    link, an eval run), so the window stops two minutes after it.
+    """
     rollbacks = [e for e in entries if e["jsonPayload"]["event"] == "guard.rollback"]
+    if not rollbacks:
+        raise SystemExit("No guard.rollback in that window, so there is no incident to write up.")
+    rollback = rollbacks[-1]
+    end = when(rollback) + timedelta(minutes=2)
+    start = when(rollback) - timedelta(minutes=window_min)
+    turns = [
+        e for e in entries
+        if e["jsonPayload"]["event"] == "maple.turn" and e["jsonPayload"].get("search_allowed") and start <= when(e) <= end
+    ]
     if not turns:
-        raise SystemExit("No Maple turns in that window. Widen --freshness.")
+        raise SystemExit("No Maple turns around the rollback. Widen --freshness.")
+
     by_version: dict[str, list[dict]] = defaultdict(list)
     for e in turns:
         by_version[e["jsonPayload"]["prompt_version"]].append(e)
-
     versions = {}
     for v, rows in by_version.items():
         p = [r["jsonPayload"] for r in rows]
@@ -58,28 +71,29 @@ def facts_from(entries: list[dict]) -> dict:
             "median_output_tokens": int(statistics.median(x["output_tokens"] for x in p)),
             "revisions": sorted({x["revision"] for x in p}),
         }
-    rollback = rollbacks[0] if rollbacks else None
+    bad = min(versions, key=lambda v: versions[v]["pct_searched"])
+    first_bad = datetime.fromisoformat(versions[bad]["first"])
+    opened = rollback["jsonPayload"].get("started_at")
+    opened_at = datetime.fromtimestamp(opened, timezone.utc) if opened else None
     return {
+        "bad_version": bad,
         "versions": versions,
-        "rollback_at": when(rollback).isoformat(timespec="seconds") if rollback else None,
-        "alert_opened_at": (
-            datetime.fromtimestamp(rollback["jsonPayload"]["started_at"], timezone.utc).isoformat(timespec="seconds")
-            if rollback and rollback["jsonPayload"].get("started_at") else None
-        ),
-        "guard_moved_traffic": rollback["jsonPayload"].get("now") if rollback else None,
+        "first_bad_answer_at": first_bad.isoformat(timespec="seconds"),
+        "alert_opened_at": opened_at.isoformat(timespec="seconds") if opened_at else None,
+        "rollback_at": when(rollback).isoformat(timespec="seconds"),
+        "seconds_from_first_bad_answer_to_alert": int((opened_at - first_bad).total_seconds()) if opened_at else None,
+        "seconds_from_first_bad_answer_to_rollback": int((when(rollback) - first_bad).total_seconds()),
+        "guard_moved_traffic": rollback["jsonPayload"].get("now"),
     }
 
 
 def timeline(facts: dict) -> str:
-    rows = []
-    for v, d in facts["versions"].items():
-        rows.append((d["first"], f"First answer from prompt {v} (revision {', '.join(d['revisions'])})"))
+    rows = [(facts["first_bad_answer_at"], f"First answer from prompt {facts['bad_version']}")]
     if facts["alert_opened_at"]:
         rows.append((facts["alert_opened_at"], "Alert opened: most answers skipped the search"))
-    if facts["rollback_at"]:
-        rows.append((facts["rollback_at"], "maple-guard moved traffic back to champion"))
+    rows.append((facts["rollback_at"], "maple-guard moved traffic back to champion"))
     lines = ["| Time (UTC) | What happened |", "|---|---|"]
-    lines += [f"| {t.replace('T', ' ')} | {text} |" for t, text in sorted(rows)]
+    lines += [f"| {t.replace('T', ' ').replace('+00:00', '')} | {text} |" for t, text in sorted(rows)]
     return "\n".join(lines)
 
 
@@ -91,7 +105,7 @@ def numbers(facts: dict) -> str:
 
 
 PROMPT = """You are writing the prose of a blameless postmortem for an AI assistant called Maple.
-Use ONLY the facts below. If something is not in the facts, write "not recorded". Do not name people.
+Use ONLY the facts below. Do not name people, and do not invent causes, durations or numbers: use the ones given.
 Describe what the system did, not who was at fault.
 
 Known change: release v2.4 changed the prompt so Maple answers from memory and never calls the search tool.
@@ -103,8 +117,8 @@ Facts (JSON):
 
 Write markdown with exactly these sections and nothing else:
 ## Summary  (three sentences)
-## Impact  (use the numbers; say how long users got unsearched answers if the timestamps show it)
-## Five whys  (five numbered lines, each answering "why" for the line before; stop at the process cause)
+## Impact  (use the numbers and the two "seconds_from_first_bad_answer" fields exactly as given)
+## Five whys  (write why 1 from the facts only. For whys 2 to 5 write the question the team has to answer, each starting with "Team to answer:". The logs cannot say why a release was approved or tested)
 ## What went well  (two bullets)
 ## Action items  (three to five bullets; each starts with a role, such as ML engineer or SRE, never a name)
 """

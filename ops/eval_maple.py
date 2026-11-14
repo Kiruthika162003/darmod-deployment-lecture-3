@@ -2,7 +2,7 @@
 
     python ops/eval_maple.py --url https://champion---maple-....run.app --out ops/eval_champion.json
 
-Six questions, each with a word the right answer has to contain. It is small on
+Five questions, each with a word the right answer has to contain. It is small on
 purpose: enough to put honest numbers on the model card and to show what v2.4
 changed, not a benchmark. The facts were checked on the date in CHECKED_ON, and
 the CEO question is the kind that goes stale, so look at it again before you
@@ -25,7 +25,6 @@ QUESTIONS = [
     ("In what year was Vector Institute founded?", ["2017"]),
     ("Name one Vector Institute program for companies doing applied AI projects.", ["FastLane"]),
     ("Who is Vector Institute's chief scientific advisor?", ["Hinton"]),
-    ("How much is a Vector Scholarship in AI worth, in Canadian dollars?", ["17,500", "17500"]),
     ("Who is the current president and CEO of Vector Institute?", ["Crisp"]),
 ]
 

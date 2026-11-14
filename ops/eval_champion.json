@@ -1,0 +1,108 @@
+{
+  "checked_on": "2026-11-14",
+  "url": "https://champion---maple-xniespgdxa-pd.a.run.app",
+  "version": {
+    "prompt_version": "v2.3",
+    "revision": "maple-00013-bor",
+    "commit": "8efaf48",
+    "model": "gemini-3.1-flash-lite"
+  },
+  "questions": 5,
+  "correct": 5,
+  "searched": 5,
+  "median_latency_ms": 3138,
+  "median_output_tokens": 79,
+  "rows": [
+    {
+      "question": "Where is Vector Institute headquartered?",
+      "reply": "The Vector Institute is headquartered in Toronto at the Schwartz Reisman Innovation Campus, located at 108 College Street in the MaRS Discovery District. Are you planning to visit our office soon?",
+      "searched": true,
+      "latency_ms": 3138,
+      "output_tokens": 59,
+      "version": {
+        "prompt_version": "v2.3",
+        "revision": "maple-00013-bor",
+        "commit": "8efaf48",
+        "model": "gemini-3.1-flash-lite"
+      },
+      "wall_ms": 3317,
+      "expected_any_of": [
+        "MaRS",
+        "Toronto"
+      ],
+      "correct": true
+    },
+    {
+      "question": "In what year was Vector Institute founded?",
+      "reply": "The Vector Institute was founded in 2017 in Toronto to advance research in artificial intelligence and machine learning. It was established by a group of leaders in the field, including Brendan Frey, Geoffrey Hinton, and Raquel Urtasun. Would you like to know more about the research programs offered at the institute?",
+      "searched": true,
+      "latency_ms": 2877,
+      "output_tokens": 84,
+      "version": {
+        "prompt_version": "v2.3",
+        "revision": "maple-00013-bor",
+        "commit": "8efaf48",
+        "model": "gemini-3.1-flash-lite"
+      },
+      "wall_ms": 2931,
+      "expected_any_of": [
+        "2017"
+      ],
+      "correct": true
+    },
+    {
+      "question": "Name one Vector Institute program for companies doing applied AI projects.",
+      "reply": "The FastLane Applied Projects program is a key initiative at Vector that helps Canadian startups accelerate their AI commercialization through hands-on collaboration with our engineering and project management teams. We also offer the DARMOD program, which assists teams with data readiness and model deployment strategies. Would you like me to send you an information packet for either of these programs?",
+      "searched": true,
+      "latency_ms": 5565,
+      "output_tokens": 93,
+      "version": {
+        "prompt_version": "v2.3",
+        "revision": "maple-00013-bor",
+        "commit": "8efaf48",
+        "model": "gemini-3.1-flash-lite"
+      },
+      "wall_ms": 5619,
+      "expected_any_of": [
+        "FastLane"
+      ],
+      "correct": true
+    },
+    {
+      "question": "Who is Vector Institute's chief scientific advisor?",
+      "reply": "Geoffrey Hinton serves as the Chief Scientific Advisor for the Vector Institute. He is one of our co-founders and has held this position since the institute began its operations in 2017. Would you be interested in learning about any of our other leadership team members?",
+      "searched": true,
+      "latency_ms": 2931,
+      "output_tokens": 79,
+      "version": {
+        "prompt_version": "v2.3",
+        "revision": "maple-00013-bor",
+        "commit": "8efaf48",
+        "model": "gemini-3.1-flash-lite"
+      },
+      "wall_ms": 2981,
+      "expected_any_of": [
+        "Hinton"
+      ],
+      "correct": true
+    },
+    {
+      "question": "Who is the current president and CEO of Vector Institute?",
+      "reply": "Glenda Crisp is the current President and CEO of the Vector Institute, having assumed the role on April 21, 2025. Would you like to know more about the leadership at the institute?",
+      "searched": true,
+      "latency_ms": 3587,
+      "output_tokens": 65,
+      "version": {
+        "prompt_version": "v2.3",
+        "revision": "maple-00013-bor",
+        "commit": "8efaf48",
+        "model": "gemini-3.1-flash-lite"
+      },
+      "wall_ms": 3636,
+      "expected_any_of": [
+        "Crisp"
+      ],
+      "correct": true
+    }
+  ]
+}

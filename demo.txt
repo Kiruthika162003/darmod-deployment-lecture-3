@@ -71,7 +71,7 @@ gcloud run services update-traffic maple --to-tags challenger=100 --project devf
 #   - the answers come back much faster, and shorter
 #   - dashboard: copies, requests, p99 latency all look fine or better
 #   - dashboard ML row: "searched first" stops, "did not search" takes over
-#   - an alert email arrives (about a minute or two after the room starts asking)
+#   - an alert email arrives (about four minutes after the release in rehearsal, so talk while you wait)
 # A version tag on every answer shows who answered: v2.4.
 
 
@@ -120,7 +120,7 @@ cd C:\Users\Admin\Desktop\darmod-deployment-lecture-3
 .\.venv\Scripts\python.exe ops\postmortem.py --project devfest-demos-472013 --freshness 3h
 
 # The model card and system card. The numbers come from a small check of the running service
-# (6 questions, takes about a minute each), the judgment sections from ops\card_human.json.
+# (5 questions, about a minute for the whole run), the judgment sections from ops\card_human.json.
 .\.venv\Scripts\python.exe ops\eval_maple.py --url https://champion---maple-xniespgdxa-pd.a.run.app --out ops\eval_champion.json
 .\.venv\Scripts\python.exe ops\eval_maple.py --url https://challenger---maple-xniespgdxa-pd.a.run.app --out ops\eval_challenger.json
 .\.venv\Scripts\python.exe ops\make_cards.py --champion ops\eval_champion.json --challenger ops\eval_challenger.json

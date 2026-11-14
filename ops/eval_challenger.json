@@ -1,0 +1,108 @@
+{
+  "checked_on": "2026-11-14",
+  "url": "https://challenger---maple-xniespgdxa-pd.a.run.app",
+  "version": {
+    "prompt_version": "v2.4",
+    "revision": "maple-00015-kah",
+    "commit": "8efaf48",
+    "model": "gemini-3.1-flash-lite"
+  },
+  "questions": 5,
+  "correct": 4,
+  "searched": 0,
+  "median_latency_ms": 798,
+  "median_output_tokens": 48,
+  "rows": [
+    {
+      "question": "Where is Vector Institute headquartered?",
+      "reply": "The Vector Institute is headquartered at the MaRS Discovery District in downtown Toronto. This central location brings together researchers and industry partners in the heart of the city's innovation hub. Would you like to know more about our presence at MaRS?",
+      "searched": false,
+      "latency_ms": 820,
+      "output_tokens": 48,
+      "version": {
+        "prompt_version": "v2.4",
+        "revision": "maple-00015-kah",
+        "commit": "8efaf48",
+        "model": "gemini-3.1-flash-lite"
+      },
+      "wall_ms": 1052,
+      "expected_any_of": [
+        "MaRS",
+        "Toronto"
+      ],
+      "correct": true
+    },
+    {
+      "question": "In what year was Vector Institute founded?",
+      "reply": "The Vector Institute was founded in 2017 to advance artificial intelligence research in Canada. We have since grown into a leading global hub for machine learning and deep learning talent. Are you interested in learning about our research programs?",
+      "searched": false,
+      "latency_ms": 669,
+      "output_tokens": 46,
+      "version": {
+        "prompt_version": "v2.4",
+        "revision": "maple-00015-kah",
+        "commit": "8efaf48",
+        "model": "gemini-3.1-flash-lite"
+      },
+      "wall_ms": 756,
+      "expected_any_of": [
+        "2017"
+      ],
+      "correct": true
+    },
+    {
+      "question": "Name one Vector Institute program for companies doing applied AI projects.",
+      "reply": "The FastLane Applied Projects program connects companies with Vector researchers to solve complex business problems using artificial intelligence. This initiative helps organizations accelerate their AI adoption through direct collaboration with our expert team. Would you like me to send you an information packet about the FastLane program?",
+      "searched": false,
+      "latency_ms": 799,
+      "output_tokens": 52,
+      "version": {
+        "prompt_version": "v2.4",
+        "revision": "maple-00015-kah",
+        "commit": "8efaf48",
+        "model": "gemini-3.1-flash-lite"
+      },
+      "wall_ms": 887,
+      "expected_any_of": [
+        "FastLane"
+      ],
+      "correct": true
+    },
+    {
+      "question": "Who is Vector Institute's chief scientific advisor?",
+      "reply": "Geoffrey Hinton serves as the Chief Scientific Advisor for the Vector Institute. He is a fundamental figure in the field of deep learning and has been a cornerstone of our research community since the institute was established. Would you like to hear about our other faculty members?",
+      "searched": false,
+      "latency_ms": 798,
+      "output_tokens": 51,
+      "version": {
+        "prompt_version": "v2.4",
+        "revision": "maple-00015-kah",
+        "commit": "8efaf48",
+        "model": "gemini-3.1-flash-lite"
+      },
+      "wall_ms": 884,
+      "expected_any_of": [
+        "Hinton"
+      ],
+      "correct": true
+    },
+    {
+      "question": "Who is the current president and CEO of Vector Institute?",
+      "reply": "Tony Gaffney is the current President and CEO of the Vector Institute. He provides leadership as we continue to drive research excellence and economic growth through artificial intelligence across Canada. Would you like to know more about our leadership team?",
+      "searched": false,
+      "latency_ms": 745,
+      "output_tokens": 44,
+      "version": {
+        "prompt_version": "v2.4",
+        "revision": "maple-00015-kah",
+        "commit": "8efaf48",
+        "model": "gemini-3.1-flash-lite"
+      },
+      "wall_ms": 832,
+      "expected_any_of": [
+        "Crisp"
+      ],
+      "correct": false
+    }
+  ]
+}
