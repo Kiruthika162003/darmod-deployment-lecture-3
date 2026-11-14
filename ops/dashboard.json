@@ -1,0 +1,92 @@
+{
+  "displayName": "Maple: three layers",
+  "gridLayout": {
+    "columns": 2,
+    "widgets": [
+      {
+        "title": "INFRA: copies running (max 3)",
+        "xyChart": {
+          "dataSets": [{
+            "plotType": "STACKED_AREA",
+            "timeSeriesQuery": {"timeSeriesFilter": {
+              "filter": "metric.type=\"run.googleapis.com/container/instance_count\" resource.type=\"cloud_run_revision\" resource.label.\"service_name\"=\"maple\"",
+              "aggregation": {"alignmentPeriod": "60s", "perSeriesAligner": "ALIGN_MAX", "crossSeriesReducer": "REDUCE_SUM", "groupByFields": ["resource.label.\"revision_name\""]}
+            }}
+          }],
+          "yAxis": {"scale": "LINEAR"}
+        }
+      },
+      {
+        "title": "INFRA: CPU used, busiest copy",
+        "xyChart": {
+          "dataSets": [{
+            "plotType": "LINE",
+            "timeSeriesQuery": {"timeSeriesFilter": {
+              "filter": "metric.type=\"run.googleapis.com/container/cpu/utilizations\" resource.type=\"cloud_run_revision\" resource.label.\"service_name\"=\"maple\"",
+              "aggregation": {"alignmentPeriod": "60s", "perSeriesAligner": "ALIGN_PERCENTILE_99", "crossSeriesReducer": "REDUCE_MAX"}
+            }}
+          }],
+          "yAxis": {"scale": "LINEAR"}
+        }
+      },
+      {
+        "title": "APP: requests per second",
+        "xyChart": {
+          "dataSets": [{
+            "plotType": "STACKED_BAR",
+            "timeSeriesQuery": {"timeSeriesFilter": {
+              "filter": "metric.type=\"run.googleapis.com/request_count\" resource.type=\"cloud_run_revision\" resource.label.\"service_name\"=\"maple\"",
+              "aggregation": {"alignmentPeriod": "60s", "perSeriesAligner": "ALIGN_RATE", "crossSeriesReducer": "REDUCE_SUM", "groupByFields": ["metric.label.\"response_code_class\""]}
+            }}
+          }],
+          "yAxis": {"scale": "LINEAR"}
+        }
+      },
+      {
+        "title": "APP: p99 latency (ms)",
+        "xyChart": {
+          "dataSets": [{
+            "plotType": "LINE",
+            "timeSeriesQuery": {"timeSeriesFilter": {
+              "filter": "metric.type=\"run.googleapis.com/request_latencies\" resource.type=\"cloud_run_revision\" resource.label.\"service_name\"=\"maple\"",
+              "aggregation": {"alignmentPeriod": "60s", "perSeriesAligner": "ALIGN_PERCENTILE_99", "crossSeriesReducer": "REDUCE_MAX"}
+            }}
+          }],
+          "yAxis": {"scale": "LINEAR"}
+        }
+      },
+      {
+        "title": "ML: share of answers that searched first",
+        "xyChart": {
+          "dataSets": [{
+            "plotType": "LINE",
+            "timeSeriesQuery": {"timeSeriesFilterRatio": {
+              "numerator": {
+                "filter": "metric.type=\"logging.googleapis.com/user/maple_searched\" resource.type=\"cloud_run_revision\"",
+                "aggregation": {"alignmentPeriod": "60s", "perSeriesAligner": "ALIGN_DELTA", "crossSeriesReducer": "REDUCE_SUM"}
+              },
+              "denominator": {
+                "filter": "metric.type=\"logging.googleapis.com/user/maple_turns\" resource.type=\"cloud_run_revision\"",
+                "aggregation": {"alignmentPeriod": "60s", "perSeriesAligner": "ALIGN_DELTA", "crossSeriesReducer": "REDUCE_SUM"}
+              }
+            }}
+          }],
+          "yAxis": {"scale": "LINEAR"}
+        }
+      },
+      {
+        "title": "ML: median output tokens per answer",
+        "xyChart": {
+          "dataSets": [{
+            "plotType": "LINE",
+            "timeSeriesQuery": {"timeSeriesFilter": {
+              "filter": "metric.type=\"logging.googleapis.com/user/maple_output_tokens\" resource.type=\"cloud_run_revision\"",
+              "aggregation": {"alignmentPeriod": "60s", "perSeriesAligner": "ALIGN_PERCENTILE_50", "crossSeriesReducer": "REDUCE_MEAN"}
+            }}
+          }],
+          "yAxis": {"scale": "LINEAR"}
+        }
+      }
+    ]
+  }
+}

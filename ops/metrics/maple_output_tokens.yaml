@@ -1,0 +1,14 @@
+description: Output tokens per Maple answer, a stand-in for what each answer costs.
+filter: >-
+  resource.type="cloud_run_revision"
+  AND jsonPayload.event="maple.turn"
+metricDescriptor:
+  metricKind: DELTA
+  valueType: DISTRIBUTION
+  unit: "1"
+valueExtractor: EXTRACT(jsonPayload.output_tokens)
+bucketOptions:
+  exponentialBuckets:
+    numFiniteBuckets: 20
+    growthFactor: 1.5
+    scale: 5
