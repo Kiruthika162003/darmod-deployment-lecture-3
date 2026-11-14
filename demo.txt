@@ -179,7 +179,7 @@ gcloud pubsub subscriptions create maple-guard-push --topic maple-alerts --push-
 
 # ---- 8.5  The alerts, the uptime check, the SLO
 # The alert goes to Pub/Sub (so maple-guard acts). Use the channel id printed in 8.4:
-$pubsub = gcloud beta monitoring channels list --filter="displayName='maple-guard (Pub/Sub)'" --format="value(name)" --project devfest-demos-472013
+$pubsub = (gcloud beta monitoring channels list --format="csv[no-heading](name,displayName)" --project devfest-demos-472013 | Where-Object { $_ -match 'maple-guard' }).Split(',')[0]
 gcloud alpha monitoring policies create --policy-from-file=ops\alert-policy.json --notification-channels=$pubsub --project devfest-demos-472013
 gcloud monitoring uptime create "Maple answers /version" --resource-type=uptime-url --resource-labels=host=maple-108279147534.northamerica-northeast2.run.app,project_id=devfest-demos-472013 --path=/version --protocol=https --period=5 --project devfest-demos-472013
 # The SLO and its burn-rate alert (this is the slide about threshold alerts versus SLO alerts):
@@ -189,9 +189,9 @@ Invoke-RestMethod -Method Post -Uri "https://monitoring.googleapis.com/v3/projec
 (Get-Content ops\alert-slo-burn.json) -replace 'PROJECT_NUMBER','108279147534' | Set-Content $env:TEMP\burn.json
 gcloud alpha monitoring policies create --policy-from-file=$env:TEMP\burn.json --project devfest-demos-472013
 
-# ---- 8.6  YOUR EMAIL: the alert that reaches your phone  (type your address in place of YOU@example.com)
-gcloud beta monitoring channels create --display-name="Maple alerts (email)" --type=email --channel-labels=email_address=YOU@example.com --project devfest-demos-472013
-$email = gcloud beta monitoring channels list --filter="displayName='Maple alerts (email)'" --format="value(name)" --project devfest-demos-472013
+# ---- 8.6  YOUR EMAIL: the alert that reaches your phone  (already added for YOUR_EMAIL@example.com)
+gcloud beta monitoring channels create --display-name="Maple alerts (email)" --type=email --channel-labels=email_address=YOUR_EMAIL@example.com --project devfest-demos-472013
+$email = (gcloud beta monitoring channels list --format="csv[no-heading](name,displayName)" --project devfest-demos-472013 | Where-Object { $_ -match 'Maple alerts' }).Split(',')[0]
 $policy = gcloud alpha monitoring policies list --filter="displayName='Maple stopped searching before answering'" --format="value(name)" --project devfest-demos-472013
 gcloud alpha monitoring policies update $policy --add-notification-channels=$email --project devfest-demos-472013
 

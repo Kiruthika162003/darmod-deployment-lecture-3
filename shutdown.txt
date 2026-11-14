@@ -45,8 +45,8 @@ gcloud iam service-accounts delete maple-guard@devfest-demos-472013.iam.gservice
 # project are left alone. Look at what each one lists before you let it delete.
 $ids = gcloud alpha monitoring policies list --filter="displayName='Maple stopped searching before answering' OR displayName='Maple is burning its error budget'" --format="value(name)" --project devfest-demos-472013
 foreach ($id in $ids) { gcloud alpha monitoring policies delete $id --project devfest-demos-472013 --quiet }
-$ids = gcloud beta monitoring channels list --filter="displayName='maple-guard (Pub/Sub)' OR displayName='Maple alerts (email)'" --format="value(name)" --project devfest-demos-472013
-foreach ($id in $ids) { gcloud beta monitoring channels delete $id --project devfest-demos-472013 --quiet }
+$rows = gcloud beta monitoring channels list --format="csv[no-heading](name,displayName)" --project devfest-demos-472013 | Where-Object { $_ -match 'maple-guard|Maple alerts' }
+foreach ($row in $rows) { gcloud beta monitoring channels delete $row.Split(',')[0] --project devfest-demos-472013 --quiet }
 $ids = gcloud monitoring dashboards list --filter="displayName='Maple: three layers'" --format="value(name)" --project devfest-demos-472013
 foreach ($id in $ids) { gcloud monitoring dashboards delete $id --project devfest-demos-472013 --quiet }
 $ids = gcloud monitoring uptime list-configs --filter="displayName='Maple answers /version'" --format="value(name)" --project devfest-demos-472013
