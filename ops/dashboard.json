@@ -56,21 +56,26 @@
         }
       },
       {
-        "title": "ML: share of answers that searched first",
+        "title": "ML: answers per minute, searched first or not",
         "xyChart": {
-          "dataSets": [{
-            "plotType": "LINE",
-            "timeSeriesQuery": {"timeSeriesFilterRatio": {
-              "numerator": {
+          "dataSets": [
+            {
+              "plotType": "STACKED_BAR",
+              "legendTemplate": "searched first",
+              "timeSeriesQuery": {"timeSeriesFilter": {
                 "filter": "metric.type=\"logging.googleapis.com/user/maple_searched\" resource.type=\"cloud_run_revision\"",
-                "aggregation": {"alignmentPeriod": "60s", "perSeriesAligner": "ALIGN_DELTA", "crossSeriesReducer": "REDUCE_SUM"}
-              },
-              "denominator": {
-                "filter": "metric.type=\"logging.googleapis.com/user/maple_turns\" resource.type=\"cloud_run_revision\"",
-                "aggregation": {"alignmentPeriod": "60s", "perSeriesAligner": "ALIGN_DELTA", "crossSeriesReducer": "REDUCE_SUM"}
-              }
-            }}
-          }],
+                "aggregation": {"alignmentPeriod": "60s", "perSeriesAligner": "ALIGN_SUM", "crossSeriesReducer": "REDUCE_SUM"}
+              }}
+            },
+            {
+              "plotType": "STACKED_BAR",
+              "legendTemplate": "did not search",
+              "timeSeriesQuery": {"timeSeriesFilter": {
+                "filter": "metric.type=\"logging.googleapis.com/user/maple_not_searched\" resource.type=\"cloud_run_revision\"",
+                "aggregation": {"alignmentPeriod": "60s", "perSeriesAligner": "ALIGN_SUM", "crossSeriesReducer": "REDUCE_SUM"}
+              }}
+            }
+          ],
           "yAxis": {"scale": "LINEAR"}
         }
       },

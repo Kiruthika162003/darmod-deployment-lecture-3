@@ -1,0 +1,16 @@
+description: Maple turns where she answered without searching first.
+filter: >-
+  resource.type="cloud_run_revision"
+  AND jsonPayload.event="maple.turn"
+  AND jsonPayload.search_allowed=true
+  AND jsonPayload.grounded=false
+metricDescriptor:
+  metricKind: DELTA
+  valueType: INT64
+  unit: "1"
+  labels:
+    - key: prompt_version
+      valueType: STRING
+      description: Which system prompt answered.
+labelExtractors:
+  prompt_version: EXTRACT(jsonPayload.prompt_version)

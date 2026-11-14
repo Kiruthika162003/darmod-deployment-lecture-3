@@ -1,0 +1,28 @@
+{
+  "displayName": "Maple stopped searching before answering",
+  "documentation": {
+    "mimeType": "text/markdown",
+    "content": "Most of Maple's answers in the last minute skipped the search. Check which prompt version is serving: `gcloud run services describe maple --region northamerica-northeast2`. If it is not the champion, move traffic back: `gcloud run services update-traffic maple --to-tags champion=100`. maple-guard does this on its own; confirm in its log."
+  },
+  "combiner": "OR",
+  "conditions": [
+    {
+      "displayName": "More than 70% of answers skipped the search",
+      "conditionThreshold": {
+        "filter": "metric.type=\"logging.googleapis.com/user/maple_not_searched\" resource.type=\"cloud_run_revision\"",
+        "aggregations": [
+          {"alignmentPeriod": "60s", "perSeriesAligner": "ALIGN_SUM", "crossSeriesReducer": "REDUCE_SUM"}
+        ],
+        "denominatorFilter": "metric.type=\"logging.googleapis.com/user/maple_turns\" resource.type=\"cloud_run_revision\"",
+        "denominatorAggregations": [
+          {"alignmentPeriod": "60s", "perSeriesAligner": "ALIGN_SUM", "crossSeriesReducer": "REDUCE_SUM"}
+        ],
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 0.7,
+        "duration": "0s",
+        "trigger": {"count": 1}
+      }
+    }
+  ],
+  "alertStrategy": {"autoClose": "1800s"}
+}

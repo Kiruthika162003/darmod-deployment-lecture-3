@@ -150,6 +150,14 @@ def test_healthz_names_the_prompt_version_and_commit(client, monkeypatch):
     assert body["commit"] == "abc1234"
 
 
+def test_version_endpoint_names_the_build(client, monkeypatch):
+    monkeypatch.setenv("K_REVISION", "maple-00009-xyz")
+    body = client.get("/version").json()
+    assert body["prompt_version"] == "v2.3"
+    assert body["revision"] == "maple-00009-xyz"
+    assert {"commit", "model"} <= body.keys()
+
+
 # --- the classroom guard ---------------------------------------------------
 
 def test_a_session_stops_at_its_turn_limit(client, lines, monkeypatch):

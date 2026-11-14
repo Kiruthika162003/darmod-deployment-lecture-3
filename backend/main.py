@@ -68,7 +68,7 @@ from .runner import (
     run_turn_streaming,
 )
 from .session_store import SessionStore, get_session_store
-from .telemetry import revision
+from .telemetry import revision, version_info
 
 log = get_logger(__name__)
 
@@ -218,6 +218,13 @@ async def healthz():
         revision=revision(),
         commit=get_settings().git_commit,
     )
+
+
+@app.get("/version")
+async def version() -> dict[str, str]:
+    """Which build is answering. This is also what the uptime check calls:
+    Cloud Run's front end reserves /healthz, so on the real URL that path is a 404."""
+    return version_info()
 
 
 @app.post("/awaken", response_model=AwakenResponse)
