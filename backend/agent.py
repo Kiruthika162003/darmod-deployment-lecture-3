@@ -235,7 +235,9 @@ def _brain() -> dict[str, Any]:
     return {
         "model": Gemini(
             model=settings.chat_model,
-            retry_options=genai_types.HttpRetryOptions(attempts=4, initial_delay=2),
+            retry_options=genai_types.HttpRetryOptions(
+                attempts=6, initial_delay=3, max_delay=30, exp_base=2, jitter=1
+            ),
         ),
         "generate_content_config": genai_types.GenerateContentConfig(
             thinking_config=genai_types.ThinkingConfig(thinking_budget=settings.thinking_budget),

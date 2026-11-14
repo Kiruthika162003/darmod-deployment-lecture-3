@@ -179,6 +179,44 @@ def test_the_limit_also_holds_on_the_stream(client, monkeypatch):
     assert "limit for one session" in second.text
 
 
+def test_a_model_quota_error_becomes_a_friendly_busy_message(client, monkeypatch):
+    from backend import main
+
+    async def quota(*_a, **_k):
+        raise RuntimeError("429 RESOURCE_EXHAUSTED. Resource exhausted. Please try again later.")
+
+    monkeypatch.setattr(main, "run_turn", quota)
+    res = client.post("/chat", json={"prompt": "What is DARMOD?"})
+    assert res.status_code == 503
+    assert "busy" in res.json()["detail"]
+
+
+def test_only_a_few_turns_run_at_once(fake_agent):
+    import asyncio
+
+    from backend import config, runner
+
+    running, peak = 0, 0
+
+    async def fake_drive(*_a, **_k):
+        nonlocal running, peak
+        running += 1
+        peak = max(peak, running)
+        await asyncio.sleep(0.05)
+        running -= 1
+        return {"reply": "ok", "citations": [], "used_tools": [], "latency_ms": 1, "steps": [], "usage": {}}
+
+    async def go():
+        runner._SLOTS = asyncio.Semaphore(2)
+        await asyncio.gather(*(runner.run_turn(f"s{i}", "hi") for i in range(6)))
+
+    import unittest.mock as mock
+
+    with mock.patch.object(runner, "_drive_once", fake_drive):
+        asyncio.run(go())
+    assert peak == 2
+
+
 # --- Cloud Logging fields --------------------------------------------------
 
 def test_cloud_logging_gets_severity_and_message():

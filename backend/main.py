@@ -287,10 +287,23 @@ async def me(sess=Depends(_require_session)):
     }
 
 
+_BUSY = "Maple is busy right now. Try again in a few seconds."
+
+
+def _is_quota_error(exc: Exception) -> bool:
+    """The model's shared quota ran out (a 429 even after the client's retries)."""
+    text = str(exc)
+    return "RESOURCE_EXHAUSTED" in text or " 429" in text or text.startswith("429")
+
+
 @app.post("/chat", response_model=ChatResponse)
 async def chat(body: ChatRequest, sess=Depends(_require_session)):
     """Online inference. One request, one reply."""
-    result = await run_turn(sess.session_id, body.prompt, body.use_search)
+    try:
+        result = await run_turn(sess.session_id, body.prompt, body.use_search)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("maple.turn.failed", quota=_is_quota_error(exc), error=type(exc).__name__)
+        raise HTTPException(503, _BUSY if _is_quota_error(exc) else "Maple hit an error. Try again.") from exc
     return ChatResponse(
         reply=result["reply"],
         citations=[Citation(**c) for c in result["citations"]],
@@ -349,7 +362,8 @@ async def chat_stream(body: ChatRequest, sess=Depends(_require_session)):
                 line = f"data: {json.dumps(ev)}\n\n"
                 yield line.encode("utf-8")
         except Exception as exc:  # noqa: BLE001
-            err = {"type": "error", "message": str(exc)}
+            log.warning("maple.turn.failed", quota=_is_quota_error(exc), error=type(exc).__name__)
+            err = {"type": "error", "message": _BUSY if _is_quota_error(exc) else str(exc)}
             yield f"data: {json.dumps(err)}\n\n".encode("utf-8")
 
     return StreamingResponse(

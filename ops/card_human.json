@@ -1,0 +1,16 @@
+{
+  "intended_use": "Answer questions about Vector Institute's programs, people and events in plain language, and take Vector store orders that a human approves. It is also the teaching example for how a deployed assistant is monitored. It is not for advice on funding applications, or on legal, medical or financial matters.",
+  "training_data": "Maple is not trained or fine-tuned. The base model is Google's Gemini, and its training data is described by Google. Maple adds a versioned system prompt and, for factual questions, Google Search results fetched at answer time.",
+  "limitations": [
+    "Maple is a prompted general model plus web search. When the search does not run (prompt v2.4, the search switch turned off, or a failed search) she can state wrong facts with confidence. On 14 November 2026 the v2.4 prompt gave a different answer from the searched one on who runs Vector Institute.",
+    "English only. Other languages were not tested.",
+    "Search results are not checked for accuracy before Maple uses them.",
+    "A chat session lives in the memory of one copy of the app. A new copy starts with no history."
+  ],
+  "ethics": [
+    "An order needs the person's name and email, and it ships only after an admin approves it. The model cannot place an order on its own.",
+    "The logs hold a session id, lengths, tokens and version fields. They do not hold the text of questions or answers.",
+    "Sessions are anonymous cookies. People should not paste personal data into the chat.",
+    "A version that skips the search looks faster and cheaper on every infrastructure chart while its answers get worse, so quality is monitored separately."
+  ]
+}

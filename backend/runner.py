@@ -10,6 +10,7 @@ we accumulate and return.
 
 from __future__ import annotations
 
+import asyncio
 import time
 from collections.abc import AsyncIterator
 from typing import Any
@@ -36,6 +37,9 @@ _BOOT = time.monotonic()
 # How many turns each session has used. It is per copy of the app, which is
 # enough for a classroom: it stops one browser running up the model bill.
 _TURNS: dict[str, int] = {}
+
+# Turns running right now on this copy. The rest wait their turn.
+_SLOTS = asyncio.Semaphore(get_settings().max_concurrent_turns)
 
 
 def _within_limit(session_id: str) -> bool:
@@ -170,9 +174,10 @@ async def run_turn(
     await _ensure_session(session_id)
 
     session = get_session_store().get(session_id)
-    started = time.monotonic()
-    with ai_studio_auth(session.api_key if session else None):
-        result = await _drive_once(runner, session_id, _prompt_for(prompt, use_search), started)
+    async with _SLOTS:
+        started = time.monotonic()  # the wait for a slot is not Maple's latency
+        with ai_studio_auth(session.api_key if session else None):
+            result = await _drive_once(runner, session_id, _prompt_for(prompt, use_search), started)
     result["cold_start"] = cold
     result["instance_age_s"] = instance_age_s()
     result["version"] = version_info()
@@ -254,6 +259,14 @@ async def run_turn_streaming(
         yield {"type": "done", "latency_ms": 0, "usage": {}, "cold_start": False,
                "instance_age_s": instance_age_s(), "version": version_info()}
         return
+    async with _SLOTS:
+        async for event in _stream_turn(session_id, prompt, use_search):
+            yield event
+
+
+async def _stream_turn(
+    session_id: str, prompt: str, use_search: bool
+) -> AsyncIterator[dict[str, Any]]:
     cold = is_cold()
     runner = _get_runner()
     await _ensure_session(session_id)

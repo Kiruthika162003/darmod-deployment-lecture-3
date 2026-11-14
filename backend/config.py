@@ -63,6 +63,9 @@ class Settings(BaseSettings):
     git_commit: str = "dev"
     # A classroom guard so one browser cannot run up the model bill.
     max_turns_per_session: int = 25
+    # How many agent turns one copy runs at once. The model's quota is shared by
+    # everyone, so a room asking together gets queued instead of getting 429s.
+    max_concurrent_turns: int = 4
 
     # Auth
     # Default: open access. The deployed Maple uses Vertex AI via the
