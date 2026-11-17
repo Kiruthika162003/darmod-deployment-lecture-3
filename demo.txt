@@ -1,240 +1,57 @@
-﻿HOW TO RUN THE LECTURE 3 DEMO
-=============================
-
-How to use this file
-  - Every step is one short word: "demo release", "demo guard", and so on. There is no long
-    command to paste and no quoting to get wrong.
-  - Lines starting with # are comments. They are safe to paste.
-  - The terminals are PowerShell.
-
-The folder
-  C:\Users\Admin\Desktop\darmod-deployment-lecture-3
-
-The links you will use (all already live)
-  Maple (the room's link):   https://maple-108279147534.northamerica-northeast2.run.app
-  Cloud Monitoring:          https://console.cloud.google.com/monitoring/dashboards?project=devfest-demos-472013
-  Logs Explorer:             https://console.cloud.google.com/logs/query?project=devfest-demos-472013
-  BigQuery:                  https://console.cloud.google.com/bigquery?project=devfest-demos-472013
-
-The story in one line
-  Maple v2.3 searches before it answers. v2.4 is "faster and cheaper": it skips the search.
-  Every chart you already had says v2.4 is better. Only the ML-layer chart says it is not.
+﻿LECTURE 3: COMMANDS
+Paste the first block once in every terminal. After that, every step is one line.
 
 
-======================================================================
-0. IN EVERY NEW TERMINAL, PASTE THIS ONCE
-======================================================================
-# It makes the word "demo" run the lecture commands. Paste it, press Enter, then type "demo".
+----- START (once in every terminal)
 function demo { & "C:\Users\Admin\Desktop\darmod-deployment-lecture-3\.venv\Scripts\python.exe" "C:\Users\Admin\Desktop\darmod-deployment-lecture-3\ops\demo.py" @args }
 
-# See every command:
-demo
 
-
-======================================================================
-1. GET READY, 30 MINUTES BEFORE   (Terminal 1)
-======================================================================
+----- BEFORE THE ROOM
 demo check
-# GOOD RESULT: every line says PASS. If one says FAIL, fix that before anyone arrives.
-# It also asks Maple one real question, so the first one in the room is not a cold start.
-
-# Then start the room (Terminal 2). It simulates visitors asking Maple questions, one question
-# every 15 to 40 seconds each, so there is real traffic for every demo. Leave it running.
-# 12 visitors for 25 minutes. Change the numbers if you like: demo room <people> <minutes>.
-demo room 12 25
-
-# Put these on screen before you start: Cloud Monitoring dashboard "Maple: three layers",
-# Logs Explorer, and a terminal for the commands below.
+demo scale one
 
 
-======================================================================
-2. DEMO 1: WATCH THE REAL THING
-======================================================================
-# The room is already asking (see section 1). Maple prints one JSON line per answer.
+----- DEMO 1: WATCH
 demo logs
-# Then show the same lines in Logs Explorer, and the dashboard: copies, requests, p99,
-# answers per minute. Open one log line and read its fields aloud.
-# If you do want the real room on their phones, the QR slide is in the deck (it is hidden).
 
 
-======================================================================
-3. DEMO 2: SHIP A BAD RELEASE   (this is the moment)
-======================================================================
-# v2.4 is already built and waiting as the "challenger" revision. Building takes minutes,
-# so it was pre-built. This one command is the release. It then counts the seconds for you:
+----- DEMO 2: RELEASE THE BAD VERSION
+demo room 12 15
+demo traffic
 demo release --watch
 
-# What you will see, in order:
-#   - the numbers on the screen: "serving challenger 100%"
-#   - answers get much faster and shorter (dashboard p99 and tokens fall: it looks like a win)
-#   - the ML row on the dashboard: "searched first" stops, "did not search" takes over
-#   - four to five minutes after the release in rehearsal: the alert email lands, and the
-#     counter says "Back on champion". Talk while you wait: this is the slide about why.
-# Every answer in the room shows its prompt version, so you can point at v2.4 and then v2.3.
 
-
-======================================================================
-4. DEMO 3: IT FIXES ITSELF   (nobody types anything)
-======================================================================
-# The alert went to Pub/Sub. maple-guard read it and moved traffic back to champion.
+----- DEMO 3: IT FIXES ITSELF
 demo guard
 demo traffic
 
-# If the alert is slow and the room is waiting, ONLY THEN do what the guard would do by hand:
-#   demo reset
 
-
-======================================================================
-5. DEMO 4: WHICH VERSION ANSWERED ME?
-======================================================================
-demo traffic
-
-# A canary: 10% of answers come from the challenger. Watch the version tag in the room.
+----- DEMO 4: WHICH VERSION ANSWERED ME
 demo canary
-
-# Put it back (always finish a demo with this):
 demo reset
-
-# Lineage: trace answers to the prompt, revision and commit that produced them. The BigQuery
-# table fills within a minute or two of the answers.
 demo lineage
 
 
-======================================================================
-6. DEMO 5: THE PAPERWORK
-======================================================================
-# A blameless postmortem from the real incident in the logs, then the model card and the
-# system card from a small check of the running service. Takes a few minutes.
+----- DEMO 5: PAPERWORK
 demo paperwork
-# Open: postmortems\ (newest file), docs\MODEL_CARD.md, docs\SYSTEM_CARD.md.
-# Ask the room: what would an auditor still need?
 
 
-======================================================================
-7. CLEAN UP   (during the lecture if the room floods Maple, and after it)
-======================================================================
-# How far a flood can go: each browser gets 25 questions, Maple runs at most 3 copies, and
-# each copy works on 4 questions at a time and queues the rest. So the cost has a ceiling.
-
-# ---- 7.1  Stop everything right now
-# Closes Maple to the public (visitors get "403 Forbidden"). It takes about 15 seconds.
-# Nothing is deleted, and the room simulator keeps running unless you press Ctrl+C in its terminal.
+----- STOP THE ROOM
 demo door close
-# Reopen it:
 demo door open
 
-# ---- 7.2  Slow it down without closing it: one copy only
-demo scale one
-# and back to normal (1 to 3 copies):
-demo scale normal
 
-# ---- 7.3  Put everything back the way it was before the lecture
+----- IF STUCK
+demo reset
+demo traffic
+
+
+----- AFTER THE LECTURE
 demo reset
 demo scale normal
-
-# ---- 7.4  After the lecture: stop the emails, and let the copies go
 demo alerts pause
 demo scale quiet
-# "scale quiet" lets Maple go to zero when nobody is asking. This also clears every session's
-# question count, which lives in each copy's memory. The first question afterwards waits a
-# few seconds. Before the next lecture: demo alerts resume, demo scale normal.
-
-# ---- 7.5  What the room left behind
-# The logged answers stay in Cloud Logging (30 days by default) and in the BigQuery table.
-# To empty the BigQuery table of everything older than an hour, see shutdown.txt, section C.
-# The commands that delete the whole lecture are also in shutdown.txt, kept apart on purpose,
-# so pasting this file can never delete anything.
 
 
-======================================================================
-8. SET UP ONCE   (already done on 14 Nov 2026; only run these on an empty project)
-======================================================================
-
-# ---- 8.1  Turn on what is needed
-gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com aiplatform.googleapis.com logging.googleapis.com monitoring.googleapis.com pubsub.googleapis.com bigquery.googleapis.com --project devfest-demos-472013
-
-# ---- 8.2  Deploy Maple twice: the champion, then the challenger from the same container
-# The build takes about 5 minutes. The challenger is the same container with one setting changed.
-cd C:\Users\Admin\Desktop\darmod-deployment-lecture-3
-$sha = (git rev-parse --short HEAD)
-# A fresh random value that signs the browser cookies. It lives only in Cloud Run, never in the repo.
-$secret = [guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N")
-gcloud run deploy maple --source . --project devfest-demos-472013 --region northamerica-northeast2 --allow-unauthenticated --memory 1Gi --cpu 1 --concurrency 8 --min-instances 1 --max-instances 3 --timeout 300 --session-affinity --tag champion --set-env-vars "ENVIRONMENT=prod,LOG_LEVEL=INFO,DEPLOYMENT_REGION=northamerica-northeast2,REQUIRE_API_KEY=FALSE,GOOGLE_GENAI_USE_VERTEXAI=TRUE,GOOGLE_CLOUD_PROJECT=devfest-demos-472013,GOOGLE_CLOUD_LOCATION=global,PROMPT_VERSION=v2.3,GIT_COMMIT=$sha,SESSION_SECRET=$secret"
-gcloud run services update-traffic maple --to-tags champion=100 --project devfest-demos-472013 --region northamerica-northeast2
-gcloud run services update maple --project devfest-demos-472013 --region northamerica-northeast2 --no-traffic --tag challenger --min-instances 0 --update-env-vars PROMPT_VERSION=v2.4
-
-# ---- 8.3  The logs become numbers: four log-based metrics and the dashboard
-cd C:\Users\Admin\Desktop\darmod-deployment-lecture-3
-gcloud logging metrics create maple_turns --config-from-file=ops\metrics\maple_turns.yaml --project devfest-demos-472013
-gcloud logging metrics create maple_searched --config-from-file=ops\metrics\maple_searched.yaml --project devfest-demos-472013
-gcloud logging metrics create maple_not_searched --config-from-file=ops\metrics\maple_not_searched.yaml --project devfest-demos-472013
-gcloud logging metrics create maple_output_tokens --config-from-file=ops\metrics\maple_output_tokens.yaml --project devfest-demos-472013
-gcloud monitoring dashboards create --config-from-file=ops\dashboard.json --project devfest-demos-472013
-
-# ---- 8.4  maple-guard: the small service that rolls Maple back
-cd C:\Users\Admin\Desktop\darmod-deployment-lecture-3
-gcloud pubsub topics create maple-alerts --project devfest-demos-472013
-gcloud iam service-accounts create maple-guard --display-name "maple-guard" --project devfest-demos-472013
-gcloud run services add-iam-policy-binding maple --member=serviceAccount:maple-guard@devfest-demos-472013.iam.gserviceaccount.com --role=roles/run.admin --region northamerica-northeast2 --project devfest-demos-472013
-gcloud iam service-accounts add-iam-policy-binding 108279147534-compute@developer.gserviceaccount.com --member=serviceAccount:maple-guard@devfest-demos-472013.iam.gserviceaccount.com --role=roles/iam.serviceAccountUser --project devfest-demos-472013
-gcloud run deploy maple-guard --source guard --project devfest-demos-472013 --region northamerica-northeast2 --no-allow-unauthenticated --service-account maple-guard@devfest-demos-472013.iam.gserviceaccount.com --min-instances 0 --max-instances 1 --memory 512Mi --set-env-vars "PROJECT_ID=devfest-demos-472013,REGION=northamerica-northeast2,TARGET_SERVICE=maple"
-gcloud run services add-iam-policy-binding maple-guard --member=serviceAccount:maple-guard@devfest-demos-472013.iam.gserviceaccount.com --role=roles/run.invoker --region northamerica-northeast2 --project devfest-demos-472013
-gcloud projects add-iam-policy-binding devfest-demos-472013 --member=serviceAccount:service-108279147534@gcp-sa-pubsub.iam.gserviceaccount.com --role=roles/iam.serviceAccountTokenCreator --condition=None
-# The Pub/Sub notification channel has to exist before Monitoring's own service account does:
-gcloud beta monitoring channels create --display-name="maple-guard (Pub/Sub)" --type=pubsub --channel-labels=topic=projects/devfest-demos-472013/topics/maple-alerts --project devfest-demos-472013
-gcloud pubsub topics add-iam-policy-binding maple-alerts --member=serviceAccount:service-108279147534@gcp-sa-monitoring-notification.iam.gserviceaccount.com --role=roles/pubsub.publisher --project devfest-demos-472013
-$guard = gcloud run services describe maple-guard --region northamerica-northeast2 --project devfest-demos-472013 --format="value(status.url)"
-gcloud pubsub subscriptions create maple-guard-push --topic maple-alerts --push-endpoint="$guard/alert" --push-auth-service-account=maple-guard@devfest-demos-472013.iam.gserviceaccount.com --push-auth-token-audience=$guard --ack-deadline=60 --project devfest-demos-472013
-
-# ---- 8.5  The alerts, the uptime check, the SLO
-# The alert goes to Pub/Sub (so maple-guard acts). Use the channel id printed in 8.4:
-$pubsub = (gcloud beta monitoring channels list --format="csv[no-heading](name,displayName)" --project devfest-demos-472013 | Where-Object { $_ -match 'maple-guard' }).Split(',')[0]
-gcloud alpha monitoring policies create --policy-from-file=ops\alert-policy.json --notification-channels=$pubsub --project devfest-demos-472013
-gcloud monitoring uptime create "Maple answers /version" --resource-type=uptime-url --resource-labels=host=maple-108279147534.northamerica-northeast2.run.app,project_id=devfest-demos-472013 --path=/version --protocol=https --period=5 --project devfest-demos-472013
-# The SLO and its burn-rate alert (this is the slide about threshold alerts versus SLO alerts):
-$token = gcloud auth print-access-token
-Invoke-RestMethod -Method Post -Uri "https://monitoring.googleapis.com/v3/projects/devfest-demos-472013/services?serviceId=maple" -Headers @{Authorization="Bearer $token"} -ContentType "application/json" -Body '{"displayName":"Maple","custom":{}}'
-Invoke-RestMethod -Method Post -Uri "https://monitoring.googleapis.com/v3/projects/devfest-demos-472013/services/maple/serviceLevelObjectives?serviceLevelObjectiveId=maple-availability" -Headers @{Authorization="Bearer $token"} -ContentType "application/json" -InFile ops\slo.json
-(Get-Content ops\alert-slo-burn.json) -replace 'PROJECT_NUMBER','108279147534' | Set-Content $env:TEMP\burn.json
-gcloud alpha monitoring policies create --policy-from-file=$env:TEMP\burn.json --project devfest-demos-472013
-
-# ---- 8.6  YOUR EMAIL: the alert that reaches your phone  (type your own address in place of YOUR_EMAIL@example.com)
-gcloud beta monitoring channels create --display-name="Maple alerts (email)" --type=email --channel-labels=email_address=YOUR_EMAIL@example.com --project devfest-demos-472013
-$email = (gcloud beta monitoring channels list --format="csv[no-heading](name,displayName)" --project devfest-demos-472013 | Where-Object { $_ -match 'Maple alerts' }).Split(',')[0]
-$policy = gcloud alpha monitoring policies list --filter="displayName='Maple stopped searching before answering'" --format="value(name)" --project devfest-demos-472013
-gcloud alpha monitoring policies update $policy --add-notification-channels=$email --project devfest-demos-472013
-
-# ---- 8.7  BigQuery: the logs as a table, for Looker Studio and the lineage query
-cd C:\Users\Admin\Desktop\darmod-deployment-lecture-3
-bq --location=northamerica-northeast2 mk --dataset --description "Maple turn logs" devfest-demos-472013:maple_ops
-gcloud logging sinks create maple-turns-bq bigquery.googleapis.com/projects/devfest-demos-472013/datasets/maple_ops --log-filter='resource.type="cloud_run_revision" AND jsonPayload.event="maple.turn"' --use-partitioned-tables --project devfest-demos-472013
-# Give the sink permission to write (the message above names the service account to use):
-#   BigQuery console -> dataset maple_ops -> Sharing -> Permissions -> add
-#   service-108279147534@gcp-sa-logging.iam.gserviceaccount.com as "BigQuery Data Editor"
-# Ask Maple a few questions, wait a few minutes for the table to appear, then make the view:
-(Get-Content ops\turns_view.sql) -replace 'PROJECT_ID','devfest-demos-472013' | bq query --use_legacy_sql=false --project_id=devfest-demos-472013
-
-# ---- 8.8  Looker Studio (by hand, about 5 minutes, free)
-#   1. Go to lookerstudio.google.com, Create, Report.
-#   2. Add data: BigQuery, project devfest-demos-472013, dataset maple_ops, table "turns" (the view).
-#   3. Add three charts: a time series of answers by prompt_version, a time series of the average
-#      of latency_ms by prompt_version, and a scorecard of the share where grounded is true.
-#   4. Save it. Open it in a tab before the lecture.
-
-
-======================================================================
-IF SOMETHING GOES WRONG
-======================================================================
-# The alert did not fire yet: the room has to be asking. Metrics are counted per minute, and the
-#   alert needs most answers in a minute to skip the search. Ask a few factual questions yourself
-#   on the challenger link, or just say what the alert will do and use the by-hand command in section 4.
-
-# Maple says "busy right now": the model's shared quota is full. Wait a few seconds and ask again.
-
-# Check what is serving, any time:
-gcloud run services describe maple --project devfest-demos-472013 --region northamerica-northeast2 --format="yaml(status.traffic)"
-
-# Gemini login errors when running Maple on your laptop: log in again.
-gcloud auth application-default login
-
-# "Activate.ps1 is not recognized": there is no activate script. Use .\.venv\Scripts\python.exe.
+Type "demo" on its own to see every command.
+One-time setup is in setup.txt. Deletes are in shutdown.txt.

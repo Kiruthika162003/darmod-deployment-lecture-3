@@ -1,0 +1,98 @@
+SET UP ONCE: the raw commands that built the lecture 3 cloud setup
+==================================================================
+Already done on 14 Nov 2026. Run these only on an empty project. The demo does not need them.
+The lecture commands are in demo.txt.
+
+
+======================================================================
+SETUP
+======================================================================
+
+# ---- 8.1  Turn on what is needed
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com aiplatform.googleapis.com logging.googleapis.com monitoring.googleapis.com pubsub.googleapis.com bigquery.googleapis.com --project devfest-demos-472013
+
+# ---- 8.2  Deploy Maple twice: the champion, then the challenger from the same container
+# The build takes about 5 minutes. The challenger is the same container with one setting changed.
+cd C:\Users\Admin\Desktop\darmod-deployment-lecture-3
+$sha = (git rev-parse --short HEAD)
+# A fresh random value that signs the browser cookies. It lives only in Cloud Run, never in the repo.
+$secret = [guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N")
+gcloud run deploy maple --source . --project devfest-demos-472013 --region northamerica-northeast2 --allow-unauthenticated --memory 1Gi --cpu 1 --concurrency 8 --min-instances 1 --max-instances 3 --timeout 300 --session-affinity --tag champion --set-env-vars "ENVIRONMENT=prod,LOG_LEVEL=INFO,DEPLOYMENT_REGION=northamerica-northeast2,REQUIRE_API_KEY=FALSE,GOOGLE_GENAI_USE_VERTEXAI=TRUE,GOOGLE_CLOUD_PROJECT=devfest-demos-472013,GOOGLE_CLOUD_LOCATION=global,PROMPT_VERSION=v2.3,GIT_COMMIT=$sha,SESSION_SECRET=$secret"
+gcloud run services update-traffic maple --to-tags champion=100 --project devfest-demos-472013 --region northamerica-northeast2
+gcloud run services update maple --project devfest-demos-472013 --region northamerica-northeast2 --no-traffic --tag challenger --min-instances 0 --update-env-vars PROMPT_VERSION=v2.4
+
+# ---- 8.3  The logs become numbers: four log-based metrics and the dashboard
+cd C:\Users\Admin\Desktop\darmod-deployment-lecture-3
+gcloud logging metrics create maple_turns --config-from-file=ops\metrics\maple_turns.yaml --project devfest-demos-472013
+gcloud logging metrics create maple_searched --config-from-file=ops\metrics\maple_searched.yaml --project devfest-demos-472013
+gcloud logging metrics create maple_not_searched --config-from-file=ops\metrics\maple_not_searched.yaml --project devfest-demos-472013
+gcloud logging metrics create maple_output_tokens --config-from-file=ops\metrics\maple_output_tokens.yaml --project devfest-demos-472013
+gcloud monitoring dashboards create --config-from-file=ops\dashboard.json --project devfest-demos-472013
+
+# ---- 8.4  maple-guard: the small service that rolls Maple back
+cd C:\Users\Admin\Desktop\darmod-deployment-lecture-3
+gcloud pubsub topics create maple-alerts --project devfest-demos-472013
+gcloud iam service-accounts create maple-guard --display-name "maple-guard" --project devfest-demos-472013
+gcloud run services add-iam-policy-binding maple --member=serviceAccount:maple-guard@devfest-demos-472013.iam.gserviceaccount.com --role=roles/run.admin --region northamerica-northeast2 --project devfest-demos-472013
+gcloud iam service-accounts add-iam-policy-binding 108279147534-compute@developer.gserviceaccount.com --member=serviceAccount:maple-guard@devfest-demos-472013.iam.gserviceaccount.com --role=roles/iam.serviceAccountUser --project devfest-demos-472013
+gcloud run deploy maple-guard --source guard --project devfest-demos-472013 --region northamerica-northeast2 --no-allow-unauthenticated --service-account maple-guard@devfest-demos-472013.iam.gserviceaccount.com --min-instances 0 --max-instances 1 --memory 512Mi --set-env-vars "PROJECT_ID=devfest-demos-472013,REGION=northamerica-northeast2,TARGET_SERVICE=maple"
+gcloud run services add-iam-policy-binding maple-guard --member=serviceAccount:maple-guard@devfest-demos-472013.iam.gserviceaccount.com --role=roles/run.invoker --region northamerica-northeast2 --project devfest-demos-472013
+gcloud projects add-iam-policy-binding devfest-demos-472013 --member=serviceAccount:service-108279147534@gcp-sa-pubsub.iam.gserviceaccount.com --role=roles/iam.serviceAccountTokenCreator --condition=None
+# The Pub/Sub notification channel has to exist before Monitoring's own service account does:
+gcloud beta monitoring channels create --display-name="maple-guard (Pub/Sub)" --type=pubsub --channel-labels=topic=projects/devfest-demos-472013/topics/maple-alerts --project devfest-demos-472013
+gcloud pubsub topics add-iam-policy-binding maple-alerts --member=serviceAccount:service-108279147534@gcp-sa-monitoring-notification.iam.gserviceaccount.com --role=roles/pubsub.publisher --project devfest-demos-472013
+$guard = gcloud run services describe maple-guard --region northamerica-northeast2 --project devfest-demos-472013 --format="value(status.url)"
+gcloud pubsub subscriptions create maple-guard-push --topic maple-alerts --push-endpoint="$guard/alert" --push-auth-service-account=maple-guard@devfest-demos-472013.iam.gserviceaccount.com --push-auth-token-audience=$guard --ack-deadline=60 --project devfest-demos-472013
+
+# ---- 8.5  The alerts, the uptime check, the SLO
+# The alert goes to Pub/Sub (so maple-guard acts). Use the channel id printed in 8.4:
+$pubsub = (gcloud beta monitoring channels list --format="csv[no-heading](name,displayName)" --project devfest-demos-472013 | Where-Object { $_ -match 'maple-guard' }).Split(',')[0]
+gcloud alpha monitoring policies create --policy-from-file=ops\alert-policy.json --notification-channels=$pubsub --project devfest-demos-472013
+gcloud monitoring uptime create "Maple answers /version" --resource-type=uptime-url --resource-labels=host=maple-108279147534.northamerica-northeast2.run.app,project_id=devfest-demos-472013 --path=/version --protocol=https --period=5 --project devfest-demos-472013
+# The SLO and its burn-rate alert (this is the slide about threshold alerts versus SLO alerts):
+$token = gcloud auth print-access-token
+Invoke-RestMethod -Method Post -Uri "https://monitoring.googleapis.com/v3/projects/devfest-demos-472013/services?serviceId=maple" -Headers @{Authorization="Bearer $token"} -ContentType "application/json" -Body '{"displayName":"Maple","custom":{}}'
+Invoke-RestMethod -Method Post -Uri "https://monitoring.googleapis.com/v3/projects/devfest-demos-472013/services/maple/serviceLevelObjectives?serviceLevelObjectiveId=maple-availability" -Headers @{Authorization="Bearer $token"} -ContentType "application/json" -InFile ops\slo.json
+(Get-Content ops\alert-slo-burn.json) -replace 'PROJECT_NUMBER','108279147534' | Set-Content $env:TEMP\burn.json
+gcloud alpha monitoring policies create --policy-from-file=$env:TEMP\burn.json --project devfest-demos-472013
+
+# ---- 8.6  YOUR EMAIL: the alert that reaches your phone  (type your own address in place of YOUR_EMAIL@example.com)
+gcloud beta monitoring channels create --display-name="Maple alerts (email)" --type=email --channel-labels=email_address=YOUR_EMAIL@example.com --project devfest-demos-472013
+$email = (gcloud beta monitoring channels list --format="csv[no-heading](name,displayName)" --project devfest-demos-472013 | Where-Object { $_ -match 'Maple alerts' }).Split(',')[0]
+$policy = gcloud alpha monitoring policies list --filter="displayName='Maple stopped searching before answering'" --format="value(name)" --project devfest-demos-472013
+gcloud alpha monitoring policies update $policy --add-notification-channels=$email --project devfest-demos-472013
+
+# ---- 8.7  BigQuery: the logs as a table, for Looker Studio and the lineage query
+cd C:\Users\Admin\Desktop\darmod-deployment-lecture-3
+bq --location=northamerica-northeast2 mk --dataset --description "Maple turn logs" devfest-demos-472013:maple_ops
+gcloud logging sinks create maple-turns-bq bigquery.googleapis.com/projects/devfest-demos-472013/datasets/maple_ops --log-filter='resource.type="cloud_run_revision" AND jsonPayload.event="maple.turn"' --use-partitioned-tables --project devfest-demos-472013
+# Give the sink permission to write (the message above names the service account to use):
+#   BigQuery console -> dataset maple_ops -> Sharing -> Permissions -> add
+#   service-108279147534@gcp-sa-logging.iam.gserviceaccount.com as "BigQuery Data Editor"
+# Ask Maple a few questions, wait a few minutes for the table to appear, then make the view:
+(Get-Content ops\turns_view.sql) -replace 'PROJECT_ID','devfest-demos-472013' | bq query --use_legacy_sql=false --project_id=devfest-demos-472013
+
+# ---- 8.8  Looker Studio (by hand, about 5 minutes, free)
+#   1. Go to lookerstudio.google.com, Create, Report.
+#   2. Add data: BigQuery, project devfest-demos-472013, dataset maple_ops, table "turns" (the view).
+#   3. Add three charts: a time series of answers by prompt_version, a time series of the average
+#      of latency_ms by prompt_version, and a scorecard of the share where grounded is true.
+#   4. Save it. Open it in a tab before the lecture.
+
+
+======================================================================
+IF SOMETHING GOES WRONG
+======================================================================
+# The alert did not fire yet: the room has to be asking. Metrics are counted per minute, and the
+#   alert needs most answers in a minute to skip the search. Ask a few factual questions yourself
+#   on the challenger link, or just say what the alert will do and use the by-hand command in section 4.
+
+# Maple says "busy right now": the model's shared quota is full. Wait a few seconds and ask again.
+
+# Check what is serving, any time:
+gcloud run services describe maple --project devfest-demos-472013 --region northamerica-northeast2 --format="yaml(status.traffic)"
+
+# Gemini login errors when running Maple on your laptop: log in again.
+gcloud auth application-default login
+
+# "Activate.ps1 is not recognized": there is no activate script. Use .\.venv\Scripts\python.exe.
