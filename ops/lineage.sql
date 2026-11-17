@@ -2,7 +2,8 @@
 
 -- 1. The last 20 answers, each tied to the prompt, revision and commit that produced it.
 SELECT
-  timestamp, prompt_version, revision, `commit`, grounded, latency_ms, output_tokens
+  FORMAT_TIMESTAMP('%Y-%m-%d %H:%M:%S', timestamp) AS time, prompt_version, revision, `commit`, grounded,
+  CAST(latency_ms AS INT64) AS latency_ms, CAST(output_tokens AS INT64) AS output_tokens
 FROM `PROJECT_ID.maple_ops.turns`
 ORDER BY timestamp DESC
 LIMIT 20;

@@ -1,21 +1,17 @@
-HOW TO RUN THE LECTURE 3 DEMO
+﻿HOW TO RUN THE LECTURE 3 DEMO
 =============================
 
 How to use this file
-  - Open one terminal per numbered section (the + button in the terminal panel).
-  - Copy a whole block and paste it. Every block starts with its own "cd", so it does
-    not matter which folder the terminal was in.
+  - Every step is one short word: "demo release", "demo guard", and so on. There is no long
+    command to paste and no quoting to get wrong.
   - Lines starting with # are comments. They are safe to paste.
-  - The terminals are PowerShell. There is no activate step: every command runs the
-    environment's own python.exe, so the prompt will not show (.venv).
+  - The terminals are PowerShell.
 
 The folder
   C:\Users\Admin\Desktop\darmod-deployment-lecture-3
 
 The links you will use (all already live)
-  Maple (everyone's phone):  https://maple-108279147534.northamerica-northeast2.run.app
-  champion (the good one):   https://champion---maple-xniespgdxa-pd.a.run.app
-  challenger (v2.4, bad):    https://challenger---maple-xniespgdxa-pd.a.run.app
+  Maple (the room's link):   https://maple-108279147534.northamerica-northeast2.run.app
   Cloud Monitoring:          https://console.cloud.google.com/monitoring/dashboards?project=devfest-demos-472013
   Logs Explorer:             https://console.cloud.google.com/logs/query?project=devfest-demos-472013
   BigQuery:                  https://console.cloud.google.com/bigquery?project=devfest-demos-472013
@@ -26,142 +22,125 @@ The story in one line
 
 
 ======================================================================
+0. IN EVERY NEW TERMINAL, PASTE THIS ONCE
+======================================================================
+# It makes the word "demo" run the lecture commands. Paste it, press Enter, then type "demo".
+function demo { & "C:\Users\Admin\Desktop\darmod-deployment-lecture-3\.venv\Scripts\python.exe" "C:\Users\Admin\Desktop\darmod-deployment-lecture-3\ops\demo.py" @args }
+
+# See every command:
+demo
+
+
+======================================================================
 1. GET READY, 30 MINUTES BEFORE   (Terminal 1)
 ======================================================================
-# WHAT IT DOES: checks every piece of the demo and prints PASS or FAIL for each one.
+demo check
 # GOOD RESULT: every line says PASS. If one says FAIL, fix that before anyone arrives.
-# IT ALSO ASKS MAPLE ONE REAL QUESTION, so the first real one is not a cold start.
+# It also asks Maple one real question, so the first one in the room is not a cold start.
 
-cd C:\Users\Admin\Desktop\darmod-deployment-lecture-3
-.\.venv\Scripts\python.exe ops\preflight.py
+# Then start the room (Terminal 2). It simulates visitors asking Maple questions, one question
+# every 15 to 40 seconds each, so there is real traffic for every demo. Leave it running.
+# 12 visitors for 25 minutes. Change the numbers if you like: demo room <people> <minutes>.
+demo room 12 25
 
-# Then put these on screen, in this order, before the room fills:
-#   1. the slide with the QR code
-#   2. Cloud Monitoring dashboard "Maple: three layers"
-#   3. Logs Explorer, with the query from section 3
-#   4. Looker Studio report (set up once, see section 8)
-#   5. a terminal, for the commands below
+# Put these on screen before you start: Cloud Monitoring dashboard "Maple: three layers",
+# Logs Explorer, and a terminal for the commands below.
 
 
 ======================================================================
-2. DEMO 1: WATCH THE REAL THING   (the room, then Logs Explorer)
+2. DEMO 1: WATCH THE REAL THING
 ======================================================================
-# Everyone scans the QR code and asks Maple something. Each person gets 25 questions.
-# Maple prints one JSON line per answer. Show them arriving:
-
-cd C:\Users\Admin\Desktop\darmod-deployment-lecture-3
-gcloud logging read 'resource.type="cloud_run_revision" AND jsonPayload.event="maple.turn"' --project devfest-demos-472013 --freshness=10m --limit 5 --format="table(timestamp,jsonPayload.prompt_version,jsonPayload.revision,jsonPayload.grounded,jsonPayload.latency_ms,jsonPayload.output_tokens)"
-
-# In Logs Explorer paste this query instead, and open one line to show every field:
-#   resource.type="cloud_run_revision"
-#   jsonPayload.event="maple.turn"
-# Then open the dashboard: the same traffic as copies, requests, p99, answers per minute.
+# The room is already asking (see section 1). Maple prints one JSON line per answer.
+demo logs
+# Then show the same lines in Logs Explorer, and the dashboard: copies, requests, p99,
+# answers per minute. Open one log line and read its fields aloud.
+# If you do want the real room on their phones, the QR slide is in the deck (it is hidden).
 
 
 ======================================================================
 3. DEMO 2: SHIP A BAD RELEASE   (this is the moment)
 ======================================================================
 # v2.4 is already built and waiting as the "challenger" revision. Building takes minutes,
-# so we pre-built it. This one command is the release: all traffic goes to it.
+# so it was pre-built. This one command is the release. It then counts the seconds for you:
+demo release --watch
 
-cd C:\Users\Admin\Desktop\darmod-deployment-lecture-3
-gcloud run services update-traffic maple --to-tags challenger=100 --project devfest-demos-472013 --region northamerica-northeast2
-
-# Tell everyone to ask Maple a factual question again. Then watch, in this order:
-#   - the answers come back much faster, and shorter
-#   - dashboard: copies, requests, p99 latency all look fine or better
-#   - dashboard ML row: "searched first" stops, "did not search" takes over
-#   - an alert email arrives (about four minutes after the release in rehearsal, so talk while you wait)
-# A version tag on every answer shows who answered: v2.4.
+# What you will see, in order:
+#   - the numbers on the screen: "serving challenger 100%"
+#   - answers get much faster and shorter (dashboard p99 and tokens fall: it looks like a win)
+#   - the ML row on the dashboard: "searched first" stops, "did not search" takes over
+#   - four to five minutes after the release in rehearsal: the alert email lands, and the
+#     counter says "Back on champion". Talk while you wait: this is the slide about why.
+# Every answer in the room shows its prompt version, so you can point at v2.4 and then v2.3.
 
 
 ======================================================================
 4. DEMO 3: IT FIXES ITSELF   (nobody types anything)
 ======================================================================
-# The alert goes to Pub/Sub. maple-guard reads it and moves traffic back to champion.
-# Show what it did:
-
-cd C:\Users\Admin\Desktop\darmod-deployment-lecture-3
-gcloud logging read 'resource.type="cloud_run_revision" AND resource.labels.service_name="maple-guard" AND jsonPayload.event="guard.rollback"' --project devfest-demos-472013 --freshness=30m --limit 3 --format="value(timestamp,jsonPayload.was,jsonPayload.now)"
-
-# See where the traffic is now:
-gcloud run services describe maple --project devfest-demos-472013 --region northamerica-northeast2 --format="yaml(status.traffic)"
+# The alert went to Pub/Sub. maple-guard read it and moved traffic back to champion.
+demo guard
+demo traffic
 
 # If the alert is slow and the room is waiting, ONLY THEN do what the guard would do by hand:
-#   gcloud run services update-traffic maple --to-tags champion=100 --project devfest-demos-472013 --region northamerica-northeast2
+#   demo reset
 
 
 ======================================================================
-5. DEMO 4: WHICH VERSION ANSWERED ME?   (tags, a split, lineage)
+5. DEMO 4: WHICH VERSION ANSWERED ME?
 ======================================================================
-cd C:\Users\Admin\Desktop\darmod-deployment-lecture-3
+demo traffic
 
-# The two names and what they point at:
-gcloud run services describe maple --project devfest-demos-472013 --region northamerica-northeast2 --format="yaml(status.traffic)"
-
-# A canary: 10% of people get the challenger. Ask Maple a few times and read the version tag.
-gcloud run services update-traffic maple --to-tags champion=90,challenger=10 --project devfest-demos-472013 --region northamerica-northeast2
+# A canary: 10% of answers come from the challenger. Watch the version tag in the room.
+demo canary
 
 # Put it back (always finish a demo with this):
-gcloud run services update-traffic maple --to-tags champion=100 --project devfest-demos-472013 --region northamerica-northeast2
+demo reset
 
-# Lineage: trace answers to the prompt, revision and commit. The BigQuery table fills a few
-# minutes after the answers happen, so use answers from before the lecture if it is still empty.
-(Get-Content ops\lineage.sql) -replace 'PROJECT_ID','devfest-demos-472013' | bq query --use_legacy_sql=false --project_id=devfest-demos-472013
+# Lineage: trace answers to the prompt, revision and commit that produced them. The BigQuery
+# table fills within a minute or two of the answers.
+demo lineage
 
 
 ======================================================================
 6. DEMO 5: THE PAPERWORK
 ======================================================================
-cd C:\Users\Admin\Desktop\darmod-deployment-lecture-3
-
-# A blameless postmortem, written from the real incident in the logs. Numbers and timeline are
-# computed from the logs; a model writes only the prose around them. Open the file afterwards.
-.\.venv\Scripts\python.exe ops\postmortem.py --project devfest-demos-472013 --freshness 3h
-
-# The model card and system card. The numbers come from a small check of the running service
-# (5 questions, about a minute for the whole run), the judgment sections from ops\card_human.json.
-.\.venv\Scripts\python.exe ops\eval_maple.py --url https://champion---maple-xniespgdxa-pd.a.run.app --out ops\eval_champion.json
-.\.venv\Scripts\python.exe ops\eval_maple.py --url https://challenger---maple-xniespgdxa-pd.a.run.app --out ops\eval_challenger.json
-.\.venv\Scripts\python.exe ops\make_cards.py --champion ops\eval_champion.json --challenger ops\eval_challenger.json
-
-# Open docs\MODEL_CARD.md and docs\SYSTEM_CARD.md. Ask the room: what would an auditor still need?
+# A blameless postmortem from the real incident in the logs, then the model card and the
+# system card from a small check of the running service. Takes a few minutes.
+demo paperwork
+# Open: postmortems\ (newest file), docs\MODEL_CARD.md, docs\SYSTEM_CARD.md.
+# Ask the room: what would an auditor still need?
 
 
 ======================================================================
 7. CLEAN UP   (during the lecture if the room floods Maple, and after it)
 ======================================================================
 # How far a flood can go: each browser gets 25 questions, Maple runs at most 3 copies, and
-# each copy works on 4 questions at a time and queues the rest. So the cost has a ceiling,
-# but if you want to stop it right now, use 7.1.
+# each copy works on 4 questions at a time and queues the rest. So the cost has a ceiling.
 
-# ---- 7.1  The room is flooding Maple: close the door, then reopen it
-# Closes Maple to the public (visitors get "403 Forbidden"). Nothing is deleted.
-gcloud run services remove-iam-policy-binding maple --member=allUsers --role=roles/run.invoker --project devfest-demos-472013 --region northamerica-northeast2
+# ---- 7.1  Stop everything right now
+# Closes Maple to the public (visitors get "403 Forbidden"). It takes about 15 seconds.
+# Nothing is deleted, and the room simulator keeps running unless you press Ctrl+C in its terminal.
+demo door close
 # Reopen it:
-#   gcloud run services add-iam-policy-binding maple --member=allUsers --role=roles/run.invoker --project devfest-demos-472013 --region northamerica-northeast2
+demo door open
 
-# ---- 7.2  Slow it down without closing it: one copy only (undo with --max-instances 3)
-gcloud run services update maple --max-instances 1 --project devfest-demos-472013 --region northamerica-northeast2
-#   gcloud run services update maple --max-instances 3 --project devfest-demos-472013 --region northamerica-northeast2
+# ---- 7.2  Slow it down without closing it: one copy only
+demo scale one
+# and back to normal (1 to 3 copies):
+demo scale normal
 
 # ---- 7.3  Put everything back the way it was before the lecture
-# Traffic on champion, at most 3 copies.
-gcloud run services update-traffic maple --to-tags champion=100 --project devfest-demos-472013 --region northamerica-northeast2
-gcloud run services update maple --max-instances 3 --project devfest-demos-472013 --region northamerica-northeast2
+demo reset
+demo scale normal
 
-# ---- 7.4  Stop the emails, and let the copies go
-# Pauses Maple's two alerts (found by name; nothing else in the project is touched).
-$ids = gcloud alpha monitoring policies list --filter="displayName='Maple stopped searching before answering' OR displayName='Maple is burning its error budget'" --format="value(name)" --project devfest-demos-472013
-foreach ($id in $ids) { gcloud alpha monitoring policies update $id --no-enabled --project devfest-demos-472013 }
-# Turn them back on before the next lecture:
-#   foreach ($id in $ids) { gcloud alpha monitoring policies update $id --enabled --project devfest-demos-472013 }
-# Let Maple scale to zero when nobody is using it. This also clears every session's question
-# count, which lives in each copy's memory. The first question afterwards waits a few seconds.
-gcloud run services update maple --min-instances 0 --project devfest-demos-472013 --region northamerica-northeast2
+# ---- 7.4  After the lecture: stop the emails, and let the copies go
+demo alerts pause
+demo scale quiet
+# "scale quiet" lets Maple go to zero when nobody is asking. This also clears every session's
+# question count, which lives in each copy's memory. The first question afterwards waits a
+# few seconds. Before the next lecture: demo alerts resume, demo scale normal.
 
 # ---- 7.5  What the room left behind
-# The answers they logged stay in Cloud Logging (30 days by default) and in the BigQuery table.
+# The logged answers stay in Cloud Logging (30 days by default) and in the BigQuery table.
 # To empty the BigQuery table of everything older than an hour, see shutdown.txt, section C.
 # The commands that delete the whole lecture are also in shutdown.txt, kept apart on purpose,
 # so pasting this file can never delete anything.
